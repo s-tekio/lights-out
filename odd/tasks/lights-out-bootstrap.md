@@ -47,14 +47,14 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 - [x] **T4 — Engineering standards.** Author `docs/engineering-standards.md`: the normative,
   ID-tagged rules for source control, TypeScript, architecture, testing, security, observability,
   FinOps, Terraform and documentation, each with its enforcement mechanism.
-- [ ] **T5 — Lint and format enforcement.** Root ESLint flat config with type-aware rules,
+- [x] **T5 — Lint and format enforcement.** Root ESLint flat config with type-aware rules,
   Prettier check, and pre-commit hooks (husky + lint-staged).
-- [ ] **T6 — CI pipeline and coverage gate.** GitHub Actions running lint, typecheck, test with
+- [x] **T6 — CI pipeline and coverage gate.** GitHub Actions running lint, typecheck, test with
   coverage thresholds, build, secret scanning and dependency audit; Dependabot configuration.
-- [ ] **T7 — Repository governance docs.** `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`.
-- [ ] **T8 — Frontend scaffold.** Vite + React + TypeScript app in `apps/web`, conforming to the
+- [x] **T7 — Repository governance docs.** `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`.
+- [x] **T8 — Frontend scaffold.** Vite + React + TypeScript app in `apps/web`, conforming to the
   standards enforced by T5 and T6.
-- [ ] **T9 — Lights Out game.** Board model, move resolution, solved detection, move counter and
+- [x] **T9 — Lights Out game.** Board model, move resolution, solved detection, move counter and
   timer, playable UI.
 - [ ] **T10 — Wire frontend to backend.** API client, score submission on win, leaderboard view.
 - [ ] **T11 — Documentation.** `README.md` (functional description, architecture decision,
@@ -76,7 +76,18 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 | T1 | `2b1ac18` | `git log --oneline` shows the bootstrap commit on `feat/bootstrap`; npm workspaces declared in root `package.json`. |
 | Contract | `f5460f9` | `docs/api-contract.md` frozen before either application was written. |
 | T2, T3 | `d767f9b` | 67 tests pass; `npm run typecheck`, `npm run test` and `npm run build` green for `@lights-out/api`. Parent smoke test confirmed `201` with `points: 2290`, `400` with field details, `404`, `405`. |
-| T2, T3 fix | pending | Parent review found three defects the writer's smoke test missed: `npm run dev` needed a prior build, `OPTIONS` returned `405` while being advertised, and expected `400`s logged stack traces. All three fixed and re-verified by the parent. |
+| T2, T3 fix | `d767f9b` | Parent review found three defects the writer's smoke test missed: `npm run dev` needed a prior build, `OPTIONS` returned `405` while being advertised, and expected `400`s logged stack traces. All three fixed and re-verified by the parent. |
+| T4 | `96faf8f` | `docs/engineering-standards.md` with ID-tagged rules and enforcement column. |
+| T5, T6, T7 | `44b55ed`, `c7e2de5` | `npm run lint`, `format:check`, `typecheck`, `test:coverage` (87% statements / 92% branches / 100% functions) and `build` all green. Pre-commit hook observed blocking a staged lint error. |
+| T8, T9 | pending | 96 tests total (67 API, 29 web). Web coverage 94.9% statements / 96.4% branches. Parent smoke test: `GET localhost:5173/` returned 200 and `GET localhost:5173/api/health` returned the API payload through the Vite proxy. |
+
+## Scope violations caught in review
+
+| Task | Violation | Resolution |
+| --- | --- | --- |
+| T5–T7 | The writer ran `prettier --write` over the whole repository, reformatting `docs/api-contract.md`, `docs/engineering-standards.md` and `odd/tasks/lights-out-bootstrap.md`, which were outside its allowed edit surfaces. It also ticked task checkboxes in `odd/`, which the parent owns. | All three files reverted. Root cause fixed: Markdown is now excluded from Prettier, because table padding rewrites every row of a table when one cell changes. |
+| T5–T7 | The writer invented the contact address `security@tekio.dev` in `SECURITY.md`. | Replaced with GitHub private vulnerability reporting plus an explicit note that the repository path must be filled in. A fabricated contact address is worse than none: reports would silently go nowhere. |
+| T8, T9 | The writer left the whole Vite template scaffolding on disk (`App.css`, `index.css`, `assets/`, `public/`, `.oxlintrc.json`, `tsconfig.app.json`, `tsconfig.node.json`, a stub `README.md` and a duplicate `.gitignore`) stating that file deletions were avoided. It also installed two Vite majors and hid the resulting type conflict behind `react() as unknown as Plugin`, kept an unused `@testing-library/user-event` dependency, used `role="grid"` on a `div` of buttons (invalid ARIA), and cast a DOM value with `as DifficultyId`. | All six corrected in one review round and re-verified by the parent: a single Vite major (7.3.6), no cast, `role="group"`, a checked `isDifficultyId` guard, dead files deleted, unused dependencies removed. |
 
 ## Next feature (not this one)
 
