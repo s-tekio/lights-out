@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createBoard, createSolvableBoard, isSolved, toggleAt } from './board';
+import { isSolvableWithin } from './solver';
 import { DIFFICULTIES, MAX_BOARD_SIZE, MIN_BOARD_SIZE } from './difficulty';
 
 function seededRandom(seed: number): () => number {
@@ -24,6 +25,12 @@ describe('createBoard', () => {
 
   it('rejects sizes above the contract maximum', () => {
     expect(() => createBoard(MAX_BOARD_SIZE + 1)).toThrow();
+  });
+});
+
+describe('DIFFICULTIES', () => {
+  it('uses board sizes 5, 7 and 9 for easy, normal and hard', () => {
+    expect(DIFFICULTIES.map((difficulty) => difficulty.boardSize)).toEqual([5, 7, 9]);
   });
 });
 
@@ -143,4 +150,57 @@ describe('createSolvableBoard', () => {
       expect(difficulty.boardSize).toBeLessThanOrEqual(MAX_BOARD_SIZE);
     });
   });
+
+  DIFFICULTIES.forEach((difficulty) => {
+    it(`produces ${difficulty.id} boards that need at least ${difficulty.minPresses} presses`, () => {
+      const random = seededRandom(12345);
+      const sampleSize = 300;
+
+      for (let index = 0; index < sampleSize; index += 1) {
+        const { board } = createSolvableBoard(
+          difficulty.boardSize,
+          difficulty.scrambleDepth,
+          random,
+          difficulty.minPresses,
+        );
+
+        expect(isSolvableWithin(board, difficulty.minPresses - 1)).toBe(false);
+      }
+    }, 15000);
+  });
+
+  it('produces boards that are still solved by replaying the returned presses with minPresses', () => {
+    const { board, presses } = createSolvableBoard(5, 15, seededRandom(42), 3);
+
+    let solved = board;
+    for (const index of presses) {
+      solved = toggleAt(solved, index);
+    }
+
+    expect(isSolved(solved)).toBe(true);
+  });
+
+  it('is deterministic when given the same seeded random function with minPresses', () => {
+    const first = createSolvableBoard(5, 15, seededRandom(7), 3);
+    const second = createSolvableBoard(5, 15, seededRandom(7), 3);
+
+    expect(first.board).toEqual(second.board);
+    expect(first.presses).toEqual(second.presses);
+  });
+
+  it('keeps the old behaviour when minPresses is omitted', () => {
+    const { board } = createSolvableBoard(3, 5, constantRandom(0));
+
+    expect(isSolvableWithin(board, 1)).toBe(true);
+  });
+
+  it('keeps the old behaviour when minPresses is 0', () => {
+    const { board } = createSolvableBoard(3, 5, constantRandom(0), 0);
+
+    expect(isSolvableWithin(board, 1)).toBe(true);
+  });
 });
+
+function constantRandom(value: number): () => number {
+  return () => value;
+}

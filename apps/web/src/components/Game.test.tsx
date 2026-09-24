@@ -1,9 +1,21 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createSolvableBoard } from '../game/board';
+import { findDifficultyById } from '../game/difficulty';
 import { Game } from './Game';
 
 function constantRandom(value: number): () => number {
   return () => value;
+}
+
+function cellLabel(index: number, size: number): string {
+  const row = Math.floor(index / size) + 1;
+  const col = (index % size) + 1;
+  return `Row ${row}, Column ${col}`;
+}
+
+function getCell(index: number, size: number): HTMLElement {
+  return screen.getByRole('button', { name: cellLabel(index, size) });
 }
 
 describe('Game', () => {
@@ -19,23 +31,48 @@ describe('Game', () => {
   it('pressing a cell changes the lit state of that cell and its neighbours', () => {
     render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
 
-    const pressedCell = screen.getByRole('button', { name: 'Row 1, Column 1' });
-    const neighbour = screen.getByRole('button', { name: 'Row 1, Column 2' });
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+    const firstIndex = presses[0] ?? 0;
+    const firstCell = getCell(firstIndex, difficulty.boardSize);
+    const firstCol = (firstIndex % difficulty.boardSize) + 1;
+    const neighbourCol = firstCol < difficulty.boardSize ? firstCol + 1 : firstCol - 1;
+    const neighbourIndex =
+      Math.floor(firstIndex / difficulty.boardSize) * difficulty.boardSize + (neighbourCol - 1);
+    const neighbour = getCell(neighbourIndex, difficulty.boardSize);
 
-    expect(pressedCell).toHaveAttribute('aria-pressed', 'true');
-    expect(neighbour).toHaveAttribute('aria-pressed', 'true');
+    const previousPressedLit = firstCell.getAttribute('aria-pressed');
+    const previousNeighbourLit = neighbour.getAttribute('aria-pressed');
 
-    fireEvent.click(pressedCell);
+    fireEvent.click(firstCell);
 
-    expect(pressedCell).toHaveAttribute('aria-pressed', 'false');
-    expect(neighbour).toHaveAttribute('aria-pressed', 'false');
+    expect(firstCell.getAttribute('aria-pressed')).toBe(
+      previousPressedLit === 'true' ? 'false' : 'true',
+    );
+    expect(neighbour.getAttribute('aria-pressed')).toBe(
+      previousNeighbourLit === 'true' ? 'false' : 'true',
+    );
   });
 
   it('solving the board shows the result', () => {
     render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
 
-    const cell = screen.getByRole('button', { name: 'Row 1, Column 1' });
-    fireEvent.click(cell);
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
 
     expect(screen.getByText(/Solved in/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Player name/i)).toBeInTheDocument();
@@ -56,8 +93,16 @@ describe('Game', () => {
   it('starts the timer after the first press', () => {
     render(<Game initialDifficultyId="normal" random={constantRandom(0)} />);
 
-    const cell = screen.getByRole('button', { name: 'Row 1, Column 2' });
-    fireEvent.click(cell);
+    const difficulty = findDifficultyById('normal');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+    const firstCell = getCell(presses[0] ?? 0, difficulty.boardSize);
+
+    fireEvent.click(firstCell);
 
     act(() => {
       vi.advanceTimersByTime(1500);
@@ -69,8 +114,16 @@ describe('Game', () => {
   it('starting a new game resets the move count and timer', () => {
     render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
 
-    const cell = screen.getByRole('button', { name: 'Row 1, Column 1' });
-    fireEvent.click(cell);
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+    const firstCell = getCell(presses[0] ?? 0, difficulty.boardSize);
+
+    fireEvent.click(firstCell);
 
     expect(screen.getByText('Moves: 1')).toBeInTheDocument();
 
@@ -87,12 +140,23 @@ describe('Game', () => {
   it('ignores presses after the board is already solved', () => {
     render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
 
-    const cell = screen.getByRole('button', { name: 'Row 1, Column 1' });
-    fireEvent.click(cell);
-    expect(screen.getByText('Moves: 1')).toBeInTheDocument();
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
 
-    fireEvent.click(cell);
-    expect(screen.getByText('Moves: 1')).toBeInTheDocument();
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    expect(screen.getByText(`Moves: ${presses.length}`)).toBeInTheDocument();
+
+    fireEvent.click(getCell(presses[0] ?? 0, difficulty.boardSize));
+
+    expect(screen.getByText(`Moves: ${presses.length}`)).toBeInTheDocument();
   });
 
   it('changing difficulty starts a new board of the selected size', () => {

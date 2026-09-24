@@ -12,6 +12,8 @@ describe('parMoves', () => {
     expect(parMoves(3)).toBe(6);
     expect(parMoves(5)).toBe(10);
     expect(parMoves(7)).toBe(14);
+    expect(parMoves(8)).toBe(16);
+    expect(parMoves(9)).toBe(18);
   });
 });
 
@@ -65,5 +67,7 @@ describe('computePoints', () => {
     expect(computePoints({ boardSize: 5, moves: 0, elapsedMs: 0 })).toBe(2_500);
     expect(computePoints({ boardSize: 6, moves: 0, elapsedMs: 0 })).toBe(3_600);
     expect(computePoints({ boardSize: 7, moves: 0, elapsedMs: 0 })).toBe(4_900);
+    expect(computePoints({ boardSize: 8, moves: 0, elapsedMs: 0 })).toBe(6_400);
+    expect(computePoints({ boardSize: 9, moves: 0, elapsedMs: 0 })).toBe(8_100);
   });
 });

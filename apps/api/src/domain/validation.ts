@@ -5,7 +5,7 @@ const PLAYER_NAME_MAX_LENGTH = 24;
 const PLAYER_NAME_PATTERN = /^[A-Za-z0-9 _\-.]+$/;
 
 const BOARD_SIZE_MIN = 3;
-const BOARD_SIZE_MAX = 7;
+const BOARD_SIZE_MAX = 9;
 
 const MOVES_MIN = 0;
 const MOVES_MAX = 1000;
@@ -61,9 +61,9 @@ export function parseScoreSubmission(raw: unknown): ValidationResult<ScoreInput>
   if (!('boardSize' in body)) {
     addError(errors, 'boardSize', 'is required');
   } else if (!isInteger(body.boardSize)) {
-    addError(errors, 'boardSize', 'must be an integer between 3 and 7');
+    addError(errors, 'boardSize', 'must be an integer between 3 and 9');
   } else if (body.boardSize < BOARD_SIZE_MIN || body.boardSize > BOARD_SIZE_MAX) {
-    addError(errors, 'boardSize', 'must be an integer between 3 and 7');
+    addError(errors, 'boardSize', 'must be an integer between 3 and 9');
   } else {
     boardSize = body.boardSize;
   }

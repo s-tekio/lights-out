@@ -38,7 +38,7 @@ Request body:
 | Field | Type | Rules |
 | --- | --- | --- |
 | `playerName` | string | Required. Trimmed. 1-24 characters. Only letters, digits, space, `_`, `-`, `.`. |
-| `boardSize` | integer | Required. 3 to 7 inclusive. |
+| `boardSize` | integer | Required. 3 to 9 inclusive. The range was widened from 3..7 to 3..9; the change is backwards compatible because every previously accepted value remains valid. |
 | `moves` | integer | Required. 0 to 1000 inclusive. |
 | `elapsedMs` | integer | Required. 0 to 86 400 000 inclusive (24 h). |
 
@@ -72,7 +72,7 @@ Query parameters:
 | Parameter | Type | Default | Rules |
 | --- | --- | --- | --- |
 | `limit` | integer | `10` | 1 to 100 inclusive. |
-| `boardSize` | integer | all sizes | 3 to 7 inclusive. When present, only scores for that board size are returned. |
+| `boardSize` | integer | all sizes | 3 to 9 inclusive. When present, only scores for that board size are returned. The range was widened from 3..7 to 3..9; the change is backwards compatible. |
 
 Response `200 OK`:
 

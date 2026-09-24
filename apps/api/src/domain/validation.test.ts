@@ -145,7 +145,7 @@ describe('parseScoreSubmission', () => {
     if (result.ok) return;
     expect(result.errors).toContainEqual({
       field: 'boardSize',
-      message: 'must be an integer between 3 and 7',
+      message: 'must be an integer between 3 and 9',
     });
   });
 
@@ -169,10 +169,30 @@ describe('parseScoreSubmission', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('rejects boardSize 8', () => {
+  it('accepts boardSize 8', () => {
     const result = parseScoreSubmission({
       playerName: 'Tekio',
       boardSize: 8,
+      moves: 7,
+      elapsedMs: 0,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts boardSize 9', () => {
+    const result = parseScoreSubmission({
+      playerName: 'Tekio',
+      boardSize: 9,
+      moves: 7,
+      elapsedMs: 0,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects boardSize 10', () => {
+    const result = parseScoreSubmission({
+      playerName: 'Tekio',
+      boardSize: 10,
       moves: 7,
       elapsedMs: 0,
     });
@@ -180,7 +200,7 @@ describe('parseScoreSubmission', () => {
     if (result.ok) return;
     expect(result.errors).toContainEqual({
       field: 'boardSize',
-      message: 'must be an integer between 3 and 7',
+      message: 'must be an integer between 3 and 9',
     });
   });
 
@@ -195,7 +215,7 @@ describe('parseScoreSubmission', () => {
     if (result.ok) return;
     expect(result.errors).toContainEqual({
       field: 'boardSize',
-      message: 'must be an integer between 3 and 7',
+      message: 'must be an integer between 3 and 9',
     });
   });
 
@@ -376,17 +396,31 @@ describe('parseScoreQuery', () => {
     if (result.ok) return;
     expect(result.errors).toContainEqual({
       field: 'boardSize',
-      message: 'must be an integer between 3 and 7',
+      message: 'must be an integer between 3 and 9',
     });
   });
 
-  it('rejects boardSize 8', () => {
+  it('accepts boardSize 8', () => {
     const result = parseScoreQuery({ boardSize: '8' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.boardSize).toBe(8);
+  });
+
+  it('accepts boardSize 9', () => {
+    const result = parseScoreQuery({ boardSize: '9' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.boardSize).toBe(9);
+  });
+
+  it('rejects boardSize 10', () => {
+    const result = parseScoreQuery({ boardSize: '10' });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors).toContainEqual({
       field: 'boardSize',
-      message: 'must be an integer between 3 and 7',
+      message: 'must be an integer between 3 and 9',
     });
   });
 

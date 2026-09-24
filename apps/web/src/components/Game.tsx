@@ -24,7 +24,12 @@ type GameProps = {
 };
 
 function createInitialState(difficulty: Difficulty, random: () => number): GameState {
-  const { board } = createSolvableBoard(difficulty.boardSize, difficulty.scrambleDepth, random);
+  const { board } = createSolvableBoard(
+    difficulty.boardSize,
+    difficulty.scrambleDepth,
+    random,
+    difficulty.minPresses,
+  );
 
   return {
     board,
