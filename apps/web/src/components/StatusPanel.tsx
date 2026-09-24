@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { getScoresErrorMessage, submitScore, validatePlayerName } from '../api/scores';
 import type { DifficultyId } from '../game/difficulty';
 import { DIFFICULTIES, isDifficultyId } from '../game/difficulty';
+import type { OptimalSolution } from '../game/optimal';
+import { SolutionReveal } from './SolutionReveal';
 
 type StatusPanelProps = {
   readonly moves: number;
@@ -9,6 +11,9 @@ type StatusPanelProps = {
   readonly isSolved: boolean;
   readonly currentDifficultyId: DifficultyId;
   readonly boardSize: number;
+  readonly optimalSolution?: OptimalSolution | null;
+  readonly showSolution?: boolean;
+  readonly onToggleSolution?: () => void;
   readonly onDifficultyChange: (id: DifficultyId) => void;
   readonly onNewGame: () => void;
   readonly onScoreSubmitted?: () => void;
@@ -47,6 +52,9 @@ export function StatusPanel({
   isSolved,
   currentDifficultyId,
   boardSize,
+  optimalSolution = null,
+  showSolution = false,
+  onToggleSolution,
   onDifficultyChange,
   onNewGame,
   onScoreSubmitted,
@@ -136,6 +144,16 @@ export function StatusPanel({
           <p>
             Solved in {moves} moves and {formatElapsed(elapsedMs)}.
           </p>
+
+          {optimalSolution !== null && onToggleSolution !== undefined && (
+            <SolutionReveal
+              moves={moves}
+              boardSize={boardSize}
+              solution={optimalSolution}
+              showSolution={showSolution}
+              onToggleSolution={onToggleSolution}
+            />
+          )}
 
           {rank !== null ? (
             <p className="status__rank">Your rank: {rank}</p>

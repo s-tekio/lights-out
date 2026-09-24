@@ -92,6 +92,42 @@ The consequence for the DynamoDB adapter is that every read path the UI can reac
 real access pattern. A sortable column is not a display concern: it is a query, and it needs a key
 or an index to be efficient. That is recorded in the data model below.
 
+## Optimal solution, computed on the client
+
+After a player solves a board the game can reveal how many presses the optimal solution needs, and
+which cells it uses. That computation runs entirely in the browser and needs no request.
+
+The trick is that the **client generated the board**, so it already knows a solution: the scramble
+press set `S` returned by `createSolvableBoard`. Every solution of the board lies in the coset
+`S + ker(A)` over GF(2), so
+
+```
+optimal presses = min over v in ker(A) of |S Δ v|
+optimal plan    = the coset representative that achieves it
+```
+
+There is no search. The kernel is a property of the board **size**, not of the board, so it is
+computed once with Gauss-Jordan elimination over GF(2) and cached. Its dimensions are 0 for 3×3, 2
+for 5×5 and 0 for 7×7, so there are at most four candidates to compare. The kernel cannot be skipped:
+it lowers the minimum on some 5×5 boards, so ignoring it would display a wrong optimum.
+
+Two things are worth remembering about this code:
+
+- **`BigInt` is mandatory.** A 7×7 board has 49 cells and JavaScript bitwise operators truncate to 32
+  bits. This is the same trap that produced the silent bug in `solver.ts`, and it would reappear here
+  with `number` masks.
+- **It only works while the client knows how the board was generated.** If the server ever issues
+  puzzles, this derivation moves with it. It is recorded here so that change is not a surprise.
+
+Why this is a good place for the feature: the optimal solution is a **plan**, not a suggestion.
+Pressing a cell outside the optimal set makes the board require one more press, so a hint shown
+during play can leave a player worse off than not looking. After the game is over that requirement
+disappears and the reveal is purely informative.
+
+This also does not change the security posture. The solution is already derivable from the client
+today, because the scramble lives there. Verifying that a game was actually played still requires
+server-issued puzzles, exactly as the known limitations say.
+
 ## Planned DynamoDB data model
 
 **Not implemented yet.** Recorded here so the adapter is written against a deliberate design

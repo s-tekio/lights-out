@@ -421,3 +421,47 @@ body {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* Solution highlight on the board. A dashed outline keeps the cell's own
+   lit/unlit surface unchanged, so the indicator does not rely on colour alone
+   and remains distinguishable in greyscale or with colour vision deficiency. */
+.cell--solution {
+  outline: 0.25rem dashed var(--color-accent);
+  outline-offset: 0.125rem;
+}
+
+.solution-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.solution-reveal__summary {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.solution-reveal__toggle {
+  margin-left: 0;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-accent);
+  background-color: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.solution-reveal__list {
+  width: 100%;
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.solution-reveal__list li {
+  margin: 0.125rem 0;
+}

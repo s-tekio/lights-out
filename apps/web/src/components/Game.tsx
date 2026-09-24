@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Board as GameBoard } from '../game/board';
 import { createSolvableBoard, isSolved, toggleAt } from '../game/board';
 import type { Difficulty, DifficultyId } from '../game/difficulty';
 import { DEFAULT_DIFFICULTY_ID, findDifficultyById } from '../game/difficulty';
+import { findOptimalSolution } from '../game/optimal';
 import { Board } from './Board';
 import { StatusPanel } from './StatusPanel';
 
@@ -10,6 +11,7 @@ type GameStatus = 'playing' | 'solved';
 
 type GameState = {
   readonly board: GameBoard;
+  readonly scramblePresses: readonly number[];
   readonly moves: number;
   readonly status: GameStatus;
   readonly startTime: number | null;
@@ -24,7 +26,7 @@ type GameProps = {
 };
 
 function createInitialState(difficulty: Difficulty, random: () => number): GameState {
-  const { board } = createSolvableBoard(
+  const { board, presses } = createSolvableBoard(
     difficulty.boardSize,
     difficulty.scrambleDepth,
     random,
@@ -33,6 +35,7 @@ function createInitialState(difficulty: Difficulty, random: () => number): GameS
 
   return {
     board,
+    scramblePresses: presses,
     moves: 0,
     status: 'playing',
     startTime: null,
@@ -50,6 +53,15 @@ export function Game({
     findDifficultyById(initialDifficultyId),
   );
   const [state, setState] = useState<GameState>(() => createInitialState(difficulty, random));
+  const [showSolution, setShowSolution] = useState(false);
+
+  const optimalSolution = useMemo(() => {
+    if (state.status !== 'solved') {
+      return null;
+    }
+
+    return findOptimalSolution(difficulty.boardSize, state.scramblePresses);
+  }, [state.status, state.scramblePresses, difficulty.boardSize]);
 
   const handlePress = useCallback((index: number) => {
     setState((previous) => {
@@ -63,6 +75,7 @@ export function Game({
       const solved = isSolved(nextBoard);
 
       return {
+        ...previous,
         board: nextBoard,
         moves: previous.moves + 1,
         status: solved ? 'solved' : 'playing',
@@ -74,6 +87,7 @@ export function Game({
   }, []);
 
   const startNewGame = useCallback(() => {
+    setShowSolution(false);
     setState(createInitialState(difficulty, random));
   }, [difficulty, random]);
 
@@ -81,10 +95,15 @@ export function Game({
     (id: DifficultyId) => {
       const nextDifficulty = findDifficultyById(id);
       setDifficulty(nextDifficulty);
+      setShowSolution(false);
       setState(createInitialState(nextDifficulty, random));
     },
     [random],
   );
+
+  const handleToggleSolution = useCallback(() => {
+    setShowSolution((previous) => !previous);
+  }, []);
 
   useEffect(() => {
     const startTime = state.startTime;
@@ -113,6 +132,9 @@ export function Game({
         isSolved={state.status === 'solved'}
         currentDifficultyId={difficulty.id}
         boardSize={difficulty.boardSize}
+        optimalSolution={optimalSolution}
+        showSolution={showSolution}
+        onToggleSolution={handleToggleSolution}
         onDifficultyChange={handleDifficultyChange}
         onNewGame={startNewGame}
         onScoreSubmitted={onScoreSubmitted}
@@ -121,6 +143,7 @@ export function Game({
         size={difficulty.boardSize}
         board={state.board}
         disabled={state.status === 'solved'}
+        solutionCells={showSolution ? optimalSolution?.cells : undefined}
         onPress={handlePress}
       />
     </div>

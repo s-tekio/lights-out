@@ -126,6 +126,10 @@ export function HelpDialog({ isOpen, onClose, triggerRef }: HelpDialogProps) {
               a fresh board. <strong>Moves</strong> counts your presses. The timer starts on your
               first press, not when the page loads.
             </p>
+            <p>
+              After you solve a board, the game can show how many presses the optimal solution
+              needed and which cells to press.
+            </p>
           </section>
 
           <section>

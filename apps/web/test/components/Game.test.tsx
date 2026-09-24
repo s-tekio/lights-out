@@ -59,7 +59,7 @@ describe('Game', () => {
     );
   });
 
-  it('solving the board shows the result', () => {
+  it('solving the board shows the result and the optimal count', () => {
     render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
@@ -75,6 +75,7 @@ describe('Game', () => {
     }
 
     expect(screen.getByText(/Solved in/i)).toBeInTheDocument();
+    expect(screen.getByText(/Optimal:/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Player name/i)).toBeInTheDocument();
   });
 
@@ -168,5 +169,84 @@ describe('Game', () => {
 
     expect(screen.getByText('Moves: 0')).toBeInTheDocument();
     expect(screen.getByLabelText(/Row 1, Column 7/i)).toBeInTheDocument();
+  });
+
+  it('toggles the optimal sequence when the reveal button is pressed', () => {
+    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    const toggleButton = screen.getByRole('button', { name: /Show optimal sequence/i });
+    expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(toggleButton);
+
+    expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('list')).toBeInTheDocument();
+
+    fireEvent.click(toggleButton);
+
+    expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('hides the solution again after starting a new game', () => {
+    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: /Show optimal sequence/i }));
+    expect(screen.getByRole('list')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'New game' }));
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show optimal sequence/i)).not.toBeInTheDocument();
+  });
+
+  it('hides the solution again after changing difficulty', () => {
+    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: /Show optimal sequence/i }));
+    expect(screen.getByRole('list')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Difficulty/i), {
+      target: { value: 'normal' },
+    });
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show optimal sequence/i)).not.toBeInTheDocument();
   });
 });
