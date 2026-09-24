@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Environment files: never commit real secrets.
+# The assignment requires secrets to live outside the code (Secrets Manager / SSM Parameter Store).
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Terraform (infrastructure arrives in the next feature)
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!*.tfvars.example
+
+# AWS SAM / Lambda local tooling
+.aws-sam/
+
+# Editor and OS noise
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db

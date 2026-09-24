@@ -1,0 +1,30 @@
+{
+  "name": "lights-out",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lights Out game with a persistent score leaderboard, built for a serverless AWS deployment.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --names api,web --prefix-colors blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev --workspace @lights-out/api",
+    "dev:web": "npm run dev --workspace @lights-out/web",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "rm -rf node_modules apps/*/node_modules apps/*/dist apps/*/coverage"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.6.2"
+  }
+}
