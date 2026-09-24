@@ -9,10 +9,11 @@ random presses to the solved board, which guarantees every puzzle is solvable.
 
 ## What it does
 
-- Play Lights Out at three difficulties (3×3, 5×5, 7×7), with a move counter and a timer that
+- Play Lights Out at three difficulties (5×5, 7×7, 9×9), with a move counter and a timer that
   starts on your first press.
 - Submit a finished game under a player name and see the rank it earned.
-- Read the leaderboard, filtered by board size, ordered by points.
+- Read the leaderboard, filtered by difficulty level, ordered by points.
+- A help dialog explaining the rules, the options and how a result reaches the leaderboard.
 
 Points are computed by the server from the reported `moves` and `elapsedMs`, so a client cannot
 submit an arbitrary score value. The formula is documented in
@@ -229,8 +230,8 @@ override rather than a single accidental command.
 | Lint | `npm run lint` | Passing, zero warnings |
 | Format | `npm run format:check` | Passing |
 | Types | `npm run typecheck` | Passing, both workspaces |
-| Tests | `npm run test:coverage` | 124 tests passing |
-| Coverage gate | `npm run test:coverage` | API 87% statements, web 94% statements |
+| Tests | `npm run test:coverage` | 170 tests passing |
+| Coverage gate | `npm run test:coverage` | API 87% statements, web 93.8% statements |
 | Build | `npm run build` | Passing |
 
 `docs/engineering-standards.md` is the binding bar. Every rule in it carries an ID and the

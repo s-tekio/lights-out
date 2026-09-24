@@ -61,9 +61,9 @@ wrong above 32 cells. Moving to 9×9 (81 cells) would have made it worse.
   regression test that compares against an independent reference on boards larger than 32 cells.
 - [x] **T2 — New board sizes.** Easy 5×5, Normal 7×7, Hard 9×9, with scramble depths, and widen the
   API contract's `boardSize` range to 3..9 in the contract document and the server validation.
-- [ ] **T3 — Leaderboard filter by level.** Replace the board-size selector with a difficulty
+- [x] **T3 — Leaderboard filter by level.** Replace the board-size selector with a difficulty
   selector, mapping level to `boardSize` on the wire.
-- [ ] **T4 — Help dialog.** A help button opening an accessible modal that explains the rules, the
+- [x] **T4 — Help dialog.** A help button opening an accessible modal that explains the rules, the
   available options and how results reach the leaderboard.
 - [ ] **T5 — Verification.** Independent verification of all of the above.
 
@@ -80,7 +80,8 @@ wrong above 32 cells. Moving to 9×9 (81 cells) would have made it worse.
 
 | Task | Commit | Evidence |
 | --- | --- | --- |
-| T1, T2 | pending | Parent verification, independent of the writer's own reference: anchored both the solver and a fresh reference against full brute force on 3×3 (0 mismatches); the exact counterexample now returns `false`; 1000 random 7×7 and 1000 random 9×9 boards cross-checked at `maxPresses` 0..2 with **0 mismatches**; 300 generated boards per difficulty with **0/300 below `minPresses`**. 148 tests total (71 API, 77 web). |
+| T1, T2 | `d360a5f` | Parent verification, independent of the writer's own reference: anchored both the solver and a fresh reference against full brute force on 3×3 (0 mismatches); the exact counterexample now returns `false`; 1000 random 7×7 and 1000 random 9×9 boards cross-checked at `maxPresses` 0..2 with **0 mismatches**; 300 generated boards per difficulty with **0/300 below `minPresses`**. 148 tests total (71 API, 77 web). |
+| T3, T4 | `3a9d34b` | Parent verified the leaderboard still sends `boardSize` on the wire and the contract is untouched. 170 tests total (71 API, 100 web), web coverage 93.78%. |
 
 ## Process notes
 
@@ -96,3 +97,5 @@ Two corrections were applied by the parent on top of the writer's output:
 | --- | --- |
 | Rewrote the test reference to mutate a boolean array in place instead of allocating one per node. | `solver.test.ts` took 24 046 ms, which is a 7× slowdown of the whole web suite. It now takes 9 461 ms with identical coverage. |
 | Verified the regression test has teeth rather than assuming it. | The test's counterexample is byte-for-byte the construction measured against the buggy implementation, which returned `true` where the reference returns `false`. The test therefore provably fails against the old code. |
+| Fixed focus stealing in `HelpDialog` on page load, with the regression test written first and observed failing. | The focus-restore effect ran on mount as well as on close, so the Help button took focus on page load and dropped a screen reader user into the header instead of the start of the document. |
+| Updated the README, which had gone stale. | It still advertised 3×3/5×5/7×7, a board-size filter, 124 tests and 94% web coverage. |
