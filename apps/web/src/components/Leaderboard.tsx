@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchLeaderboard, getScoresErrorMessage, type Score } from '../api/scores';
-import { MAX_BOARD_SIZE, MIN_BOARD_SIZE } from '../game/difficulty';
+import {
+  DIFFICULTIES,
+  formatBoardSizeLabel,
+  formatDifficultyLabel,
+  isDifficultyId,
+  type DifficultyId,
+} from '../game/difficulty';
 
 type LeaderboardProps = {
   readonly refreshKey?: number;
@@ -22,9 +28,21 @@ function formatElapsed(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function resolveBoardSizeFilter(difficultyId: DifficultyId | null): number | null {
+  if (difficultyId === null) {
+    return null;
+  }
+
+  const difficulty = DIFFICULTIES.find((candidate) => candidate.id === difficultyId);
+
+  return difficulty?.boardSize ?? null;
+}
+
 export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
   const [state, setState] = useState<LeaderboardState>({ kind: 'loading' });
-  const [boardSizeFilter, setBoardSizeFilter] = useState<number | null>(null);
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyId | null>(null);
+
+  const boardSizeFilter = resolveBoardSizeFilter(difficultyFilter);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -51,7 +69,7 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
 
   const handleFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
-    setBoardSizeFilter(value === '' ? null : Number(value));
+    setDifficultyFilter(isDifficultyId(value) ? value : null);
   };
 
   return (
@@ -59,18 +77,18 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
       <div className="leaderboard__header">
         <h2>Leaderboard</h2>
         <div className="leaderboard__controls">
-          <label htmlFor="leaderboard-size">Board size</label>
-          <select id="leaderboard-size" value={boardSizeFilter ?? ''} onChange={handleFilterChange}>
-            <option value="">All sizes</option>
-            {Array.from({ length: MAX_BOARD_SIZE - MIN_BOARD_SIZE + 1 }, (_, index) => {
-              const size = MIN_BOARD_SIZE + index;
-
-              return (
-                <option key={size} value={size}>
-                  {size} x {size}
-                </option>
-              );
-            })}
+          <label htmlFor="leaderboard-difficulty">Level</label>
+          <select
+            id="leaderboard-difficulty"
+            value={difficultyFilter ?? ''}
+            onChange={handleFilterChange}
+          >
+            <option value="">All levels</option>
+            {DIFFICULTIES.map((difficulty) => (
+              <option key={difficulty.id} value={difficulty.id}>
+                {formatDifficultyLabel(difficulty)}
+              </option>
+            ))}
           </select>
           <button
             type="button"
@@ -104,7 +122,7 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
             <tr>
               <th scope="col">Rank</th>
               <th scope="col">Player</th>
-              <th scope="col">Size</th>
+              <th scope="col">Level</th>
               <th scope="col">Moves</th>
               <th scope="col">Time</th>
               <th scope="col">Points</th>
@@ -115,7 +133,7 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
               <tr key={score.id}>
                 <td>{index + 1}</td>
                 <td>{score.playerName}</td>
-                <td>{score.boardSize}</td>
+                <td>{formatBoardSizeLabel(score.boardSize)}</td>
                 <td>{score.moves}</td>
                 <td>{formatElapsed(score.elapsedMs)}</td>
                 <td>{score.points}</td>

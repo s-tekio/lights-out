@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 vi.mock('./api/scores', () => ({
@@ -13,11 +13,25 @@ vi.mock('./api/scores', () => ({
 }));
 
 describe('App', () => {
+  afterEach(() => {
+    cleanup();
+  });
   it('renders the game heading and the leaderboard area', async () => {
     render(<App />);
 
     expect(screen.getByRole('heading', { name: /Lights Out/i })).toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: /Leaderboard/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/No scores yet/i)).toBeInTheDocument());
+  });
+
+  it('opens the help dialog from the header trigger', () => {
+    render(<App />);
+
+    const helpButton = screen.getByRole('button', { name: /Help/i });
+    expect(helpButton).toHaveAttribute('aria-haspopup', 'dialog');
+
+    fireEvent.click(helpButton);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /How to play/i })).toBeInTheDocument();
   });
 });

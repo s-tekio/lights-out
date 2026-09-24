@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchLeaderboard, type LeaderboardResponse, type Score } from '../api/scores';
+import { DIFFICULTIES } from '../game/difficulty';
 import { Leaderboard } from './Leaderboard';
 
 vi.mock('../api/scores', () => ({
@@ -79,7 +80,35 @@ describe('Leaderboard', () => {
     await waitFor(() => expect(screen.getByText(/Network down/i)).toBeInTheDocument());
   });
 
-  it('changes the request when the board-size filter changes', async () => {
+  it('offers All levels plus one option per difficulty', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      items: [],
+      limit: 10,
+      boardSize: null,
+    });
+    render(<Leaderboard />);
+
+    await waitFor(() => expect(screen.getByLabelText(/Level/i)).toBeInTheDocument());
+
+    const options = screen.getAllByRole('option');
+    expect(options[0]).toHaveValue('');
+    expect(options[0]).toHaveTextContent(/All levels/i);
+
+    const difficultyOptions = options.slice(1);
+    expect(difficultyOptions).toHaveLength(DIFFICULTIES.length);
+
+    let optionIndex = 0;
+    for (const difficulty of DIFFICULTIES) {
+      const option = difficultyOptions[optionIndex];
+      optionIndex += 1;
+      expect(option).toHaveValue(difficulty.id);
+      expect(option).toHaveTextContent(
+        `${difficulty.label} (${difficulty.boardSize}×${difficulty.boardSize})`,
+      );
+    }
+  });
+
+  it('sends the difficulty board size when a level is selected', async () => {
     mockedFetchLeaderboard.mockResolvedValue({
       items: [],
       limit: 10,
@@ -94,10 +123,53 @@ describe('Leaderboard', () => {
       }),
     );
 
-    fireEvent.change(screen.getByLabelText(/Board size/i), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: 'easy' } });
     await waitFor(() =>
       expect(fetchLeaderboard).toHaveBeenLastCalledWith({ limit: 10, boardSize: 5 }),
     );
+  });
+
+  it('sends no board size when All levels is selected', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      items: [],
+      limit: 10,
+      boardSize: null,
+    });
+    render(<Leaderboard />);
+
+    fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: 'hard' } });
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({ limit: 10, boardSize: 9 }),
+    );
+
+    fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: '' } });
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({ limit: 10, boardSize: null }),
+    );
+  });
+
+  it('shows the level label for a known board size', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      items: [validScore],
+      limit: 10,
+      boardSize: 5,
+    });
+    render(<Leaderboard />);
+
+    await waitFor(() => expect(screen.getByText('Tekio')).toBeInTheDocument());
+    expect(screen.getByRole('cell', { name: 'Easy (5×5)' })).toBeInTheDocument();
+  });
+
+  it('renders the raw size for an unknown board size', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      items: [{ ...validScore, boardSize: 4 }],
+      limit: 10,
+      boardSize: null,
+    });
+    render(<Leaderboard />);
+
+    await waitFor(() => expect(screen.getByText('Tekio')).toBeInTheDocument());
+    expect(screen.getByRole('cell', { name: '4×4' })).toBeInTheDocument();
   });
 
   it('refreshes when the refresh button is clicked', async () => {

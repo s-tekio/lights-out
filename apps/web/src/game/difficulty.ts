@@ -34,3 +34,21 @@ export function findDifficultyById(id: DifficultyId): Difficulty {
 
   return difficulty;
 }
+
+export function findDifficultyByBoardSize(boardSize: number): Difficulty | undefined {
+  return DIFFICULTIES.find((candidate) => candidate.boardSize === boardSize);
+}
+
+export function formatDifficultyLabel(difficulty: Difficulty): string {
+  return `${difficulty.label} (${difficulty.boardSize}×${difficulty.boardSize})`;
+}
+
+export function formatBoardSizeLabel(boardSize: number): string {
+  const difficulty = findDifficultyByBoardSize(boardSize);
+
+  if (difficulty) {
+    return formatDifficultyLabel(difficulty);
+  }
+
+  return `${boardSize}×${boardSize}`;
+}
