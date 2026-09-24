@@ -1,13 +1,9 @@
-import { randomUUID } from "node:crypto";
-import { ValidationError } from "../domain/errors.js";
-import { computePoints } from "../domain/score.js";
-import type { Score, ScoreInput } from "../domain/score.js";
-import {
-  parseScoreQuery,
-  parseScoreSubmission,
-  type ScoreQuery,
-} from "../domain/validation.js";
-import type { ScoreRepository } from "../ports/score-repository.js";
+import { randomUUID } from 'node:crypto';
+import { ValidationError } from '../domain/errors.js';
+import { computePoints } from '../domain/score.js';
+import type { Score, ScoreInput } from '../domain/score.js';
+import { parseScoreQuery, parseScoreSubmission, type ScoreQuery } from '../domain/validation.js';
+import type { ScoreRepository } from '../ports/score-repository.js';
 
 export type SubmitScoreResult = {
   score: Score;
@@ -20,7 +16,7 @@ export async function submitScore(
 ): Promise<SubmitScoreResult> {
   const parsed = parseScoreSubmission(rawBody);
   if (!parsed.ok) {
-    throw new ValidationError("Score submission is invalid.", parsed.errors);
+    throw new ValidationError('Score submission is invalid.', parsed.errors);
   }
 
   const input: ScoreInput = parsed.value;
@@ -52,7 +48,7 @@ export async function listTopScores(
 ): Promise<ListTopScoresResult> {
   const parsed = parseScoreQuery(rawQuery);
   if (!parsed.ok) {
-    throw new ValidationError("Query parameters are invalid.", parsed.errors);
+    throw new ValidationError('Query parameters are invalid.', parsed.errors);
   }
 
   const query: ScoreQuery = parsed.value;

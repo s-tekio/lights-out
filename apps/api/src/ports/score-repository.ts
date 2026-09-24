@@ -1,4 +1,4 @@
-import type { Score } from "../domain/score.js";
+import type { Score } from '../domain/score.js';
 
 export type ListTopOptions = {
   limit: number;

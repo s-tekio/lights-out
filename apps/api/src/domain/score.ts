@@ -55,11 +55,7 @@ type ComputePointsInput = {
  *   timePenalty  = floor(elapsedMs / 1000) * 5
  *   points = max(0, round(base - movePenalty - timePenalty))
  */
-export function computePoints({
-  boardSize,
-  moves,
-  elapsedMs,
-}: ComputePointsInput): number {
+export function computePoints({ boardSize, moves, elapsedMs }: ComputePointsInput): number {
   const base = boardSize * boardSize * BASE_POINTS_PER_CELL;
   const excessMoves = Math.max(0, moves - parMoves(boardSize));
   const movePenalty = excessMoves * MOVE_PENALTY_PER_EXCESS_MOVE;

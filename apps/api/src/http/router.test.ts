@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import type { Score } from "../domain/score.js";
-import type { ListTopOptions, ScoreRepository } from "../ports/score-repository.js";
-import { route, type ApiRequest, type ApiResponse } from "./router.js";
+import { describe, expect, it } from 'vitest';
+import type { Score } from '../domain/score.js';
+import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
+import { route, type ApiResponse } from './router.js';
 
 class InMemoryRepository implements ScoreRepository {
   private readonly scores: Score[] = [];
@@ -11,17 +11,17 @@ class InMemoryRepository implements ScoreRepository {
     this.shouldFail = true;
   }
 
-  async save(score: Score): Promise<Score> {
+  save(score: Score): Promise<Score> {
     if (this.shouldFail) {
-      throw new Error("Injected repository failure.");
+      return Promise.reject(new Error('Injected repository failure.'));
     }
     this.scores.push(score);
-    return score;
+    return Promise.resolve(score);
   }
 
-  async listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
+  listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
     if (this.shouldFail) {
-      throw new Error("Injected repository failure.");
+      return Promise.reject(new Error('Injected repository failure.'));
     }
 
     const filtered =
@@ -35,12 +35,12 @@ class InMemoryRepository implements ScoreRepository {
       return a.createdAt.localeCompare(b.createdAt);
     });
 
-    return ordered.slice(0, limit);
+    return Promise.resolve(ordered.slice(0, limit));
   }
 
   async rankOf(score: Score): Promise<number> {
     if (this.shouldFail) {
-      throw new Error("Injected repository failure.");
+      throw new Error('Injected repository failure.');
     }
     const all = await this.listTop({
       limit: Number.MAX_SAFE_INTEGER,
@@ -55,28 +55,28 @@ function parseJson(response: ApiResponse): unknown {
   return JSON.parse(response.body) as unknown;
 }
 
-describe("route", () => {
-  it("returns health status on GET /api/health", async () => {
+describe('route', () => {
+  it('returns health status on GET /api/health', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
-      { method: "GET", path: "/api/health", query: {}, body: "" },
+      { method: 'GET', path: '/api/health', query: {}, body: '' },
       { repo },
     );
 
     expect(response.statusCode).toBe(200);
-    expect(response.headers["Content-Type"]).toBe("application/json; charset=utf-8");
-    expect(parseJson(response)).toEqual({ status: "ok", version: "0.1.0" });
+    expect(response.headers['Content-Type']).toBe('application/json; charset=utf-8');
+    expect(parseJson(response)).toEqual({ status: 'ok', version: '0.1.0' });
   });
 
-  it("creates a score and returns 201 with a rank", async () => {
+  it('creates a score and returns 201 with a rank', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
       {
-        method: "POST",
-        path: "/api/scores",
+        method: 'POST',
+        path: '/api/scores',
         query: {},
         body: JSON.stringify({
-          playerName: "Tekio",
+          playerName: 'Tekio',
           boardSize: 5,
           moves: 7,
           elapsedMs: 42_310,
@@ -87,7 +87,7 @@ describe("route", () => {
 
     expect(response.statusCode).toBe(201);
     const body = parseJson(response) as { score: Score; rank: number };
-    expect(body.score.playerName).toBe("Tekio");
+    expect(body.score.playerName).toBe('Tekio');
     expect(body.score.boardSize).toBe(5);
     expect(body.score.moves).toBe(7);
     expect(body.score.elapsedMs).toBe(42_310);
@@ -95,14 +95,14 @@ describe("route", () => {
     expect(body.rank).toBe(1);
   });
 
-  it("returns 400 on an invalid body", async () => {
+  it('returns 400 on an invalid body', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
       {
-        method: "POST",
-        path: "/api/scores",
+        method: 'POST',
+        path: '/api/scores',
         query: {},
-        body: JSON.stringify({ playerName: "", boardSize: 10, moves: -1, elapsedMs: -1 }),
+        body: JSON.stringify({ playerName: '', boardSize: 10, moves: -1, elapsedMs: -1 }),
       },
       { repo },
     );
@@ -111,18 +111,18 @@ describe("route", () => {
     const body = parseJson(response) as {
       error: { code: string; details: Array<{ field: string; message: string }> };
     };
-    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(body.error.details.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("returns 400 on malformed JSON", async () => {
+  it('returns 400 on malformed JSON', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
       {
-        method: "POST",
-        path: "/api/scores",
+        method: 'POST',
+        path: '/api/scores',
         query: {},
-        body: "not-json",
+        body: 'not-json',
       },
       { repo },
     );
@@ -131,61 +131,61 @@ describe("route", () => {
     const body = parseJson(response) as {
       error: { code: string; details: Array<{ field: string; message: string }> };
     };
-    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(body.error.details).toContainEqual({
-      field: "body",
-      message: "must be valid JSON",
+      field: 'body',
+      message: 'must be valid JSON',
     });
   });
 
-  it("returns 404 for unknown routes", async () => {
+  it('returns 404 for unknown routes', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
-      { method: "GET", path: "/api/unknown", query: {}, body: "" },
+      { method: 'GET', path: '/api/unknown', query: {}, body: '' },
       { repo },
     );
 
     expect(response.statusCode).toBe(404);
     const body = parseJson(response) as { error: { code: string } };
-    expect(body.error.code).toBe("NOT_FOUND");
+    expect(body.error.code).toBe('NOT_FOUND');
   });
 
-  it("returns 204 with CORS headers for OPTIONS requests", async () => {
+  it('returns 204 with CORS headers for OPTIONS requests', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
-      { method: "OPTIONS", path: "/api/scores", query: {}, body: "" },
+      { method: 'OPTIONS', path: '/api/scores', query: {}, body: '' },
       { repo },
     );
 
     expect(response.statusCode).toBe(204);
-    expect(response.body).toBe("");
-    expect(response.headers["Access-Control-Allow-Origin"]).toBe("*");
-    expect(response.headers["Access-Control-Allow-Methods"]).toContain("OPTIONS");
+    expect(response.body).toBe('');
+    expect(response.headers['Access-Control-Allow-Origin']).toBe('*');
+    expect(response.headers['Access-Control-Allow-Methods']).toContain('OPTIONS');
   });
 
-  it("returns 405 for known path with wrong method", async () => {
+  it('returns 405 for known path with wrong method', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
-      { method: "DELETE", path: "/api/scores", query: {}, body: "" },
+      { method: 'DELETE', path: '/api/scores', query: {}, body: '' },
       { repo },
     );
 
     expect(response.statusCode).toBe(405);
     const body = parseJson(response) as { error: { code: string } };
-    expect(body.error.code).toBe("METHOD_NOT_ALLOWED");
+    expect(body.error.code).toBe('METHOD_NOT_ALLOWED');
   });
 
-  it("returns 500 with an injected failing repository", async () => {
+  it('returns 500 with an injected failing repository', async () => {
     const repo = new InMemoryRepository();
     repo.failOnNextCall();
 
     const response = await route(
       {
-        method: "POST",
-        path: "/api/scores",
+        method: 'POST',
+        path: '/api/scores',
         query: {},
         body: JSON.stringify({
-          playerName: "Tekio",
+          playerName: 'Tekio',
           boardSize: 5,
           moves: 7,
           elapsedMs: 0,
@@ -196,24 +196,24 @@ describe("route", () => {
 
     expect(response.statusCode).toBe(500);
     const body = parseJson(response) as { error: { code: string; message: string } };
-    expect(body.error.code).toBe("INTERNAL_ERROR");
-    expect(body.error.message).toBe("An unexpected error occurred.");
+    expect(body.error.code).toBe('INTERNAL_ERROR');
+    expect(body.error.message).toBe('An unexpected error occurred.');
   });
 
-  it("lists scores without filters", async () => {
+  it('lists scores without filters', async () => {
     const repo = new InMemoryRepository();
     await repo.save({
-      id: "1",
-      playerName: "Tekio",
+      id: '1',
+      playerName: 'Tekio',
       boardSize: 5,
       moves: 7,
       elapsedMs: 42_310,
       points: 2_290,
-      createdAt: "2026-09-24T12:00:00.000Z",
+      createdAt: '2026-09-24T12:00:00.000Z',
     });
 
     const response = await route(
-      { method: "GET", path: "/api/scores", query: {}, body: "" },
+      { method: 'GET', path: '/api/scores', query: {}, body: '' },
       { repo },
     );
 
@@ -228,29 +228,29 @@ describe("route", () => {
     expect(body.boardSize).toBeNull();
   });
 
-  it("lists scores with boardSize filter", async () => {
+  it('lists scores with boardSize filter', async () => {
     const repo = new InMemoryRepository();
     await repo.save({
-      id: "1",
-      playerName: "Tekio",
+      id: '1',
+      playerName: 'Tekio',
       boardSize: 5,
       moves: 7,
       elapsedMs: 42_310,
       points: 2_290,
-      createdAt: "2026-09-24T12:00:00.000Z",
+      createdAt: '2026-09-24T12:00:00.000Z',
     });
     await repo.save({
-      id: "2",
-      playerName: "Other",
+      id: '2',
+      playerName: 'Other',
       boardSize: 6,
       moves: 7,
       elapsedMs: 42_310,
       points: 2_290,
-      createdAt: "2026-09-24T12:00:00.000Z",
+      createdAt: '2026-09-24T12:00:00.000Z',
     });
 
     const response = await route(
-      { method: "GET", path: "/api/scores", query: { boardSize: "5" }, body: "" },
+      { method: 'GET', path: '/api/scores', query: { boardSize: '5' }, body: '' },
       { repo },
     );
 
@@ -265,10 +265,10 @@ describe("route", () => {
     expect(body.boardSize).toBe(5);
   });
 
-  it("ignores unknown query values", async () => {
+  it('ignores unknown query values', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
-      { method: "GET", path: "/api/scores", query: { foo: "bar" }, body: "" },
+      { method: 'GET', path: '/api/scores', query: { foo: 'bar' }, body: '' },
       { repo },
     );
 
@@ -277,15 +277,15 @@ describe("route", () => {
     expect(body.items).toEqual([]);
   });
 
-  it("returns 400 for invalid query parameters", async () => {
+  it('returns 400 for invalid query parameters', async () => {
     const repo = new InMemoryRepository();
     const response = await route(
-      { method: "GET", path: "/api/scores", query: { limit: "0" }, body: "" },
+      { method: 'GET', path: '/api/scores', query: { limit: '0' }, body: '' },
       { repo },
     );
 
     expect(response.statusCode).toBe(400);
     const body = parseJson(response) as { error: { code: string } };
-    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 });

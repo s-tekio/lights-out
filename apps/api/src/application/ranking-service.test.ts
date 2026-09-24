@@ -1,18 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { ValidationError } from "../domain/errors.js";
-import type { Score } from "../domain/score.js";
-import type { ListTopOptions, ScoreRepository } from "../ports/score-repository.js";
-import { listTopScores, submitScore } from "./ranking-service.js";
+import { describe, expect, it } from 'vitest';
+import { ValidationError } from '../domain/errors.js';
+import type { Score } from '../domain/score.js';
+import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
+import { listTopScores, submitScore } from './ranking-service.js';
 
 class InMemoryRepository implements ScoreRepository {
   private readonly scores: Score[] = [];
 
-  async save(score: Score): Promise<Score> {
+  save(score: Score): Promise<Score> {
     this.scores.push(score);
-    return score;
+    return Promise.resolve(score);
   }
 
-  async listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
+  listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
     const filtered =
       boardSize === null
         ? this.scores
@@ -24,7 +24,7 @@ class InMemoryRepository implements ScoreRepository {
       return a.createdAt.localeCompare(b.createdAt);
     });
 
-    return ordered.slice(0, limit);
+    return Promise.resolve(ordered.slice(0, limit));
   }
 
   async rankOf(score: Score): Promise<number> {
@@ -37,11 +37,11 @@ class InMemoryRepository implements ScoreRepository {
   }
 }
 
-describe("submitScore", () => {
-  it("computes points server-side, saves, and returns rank 1 for the first score", async () => {
+describe('submitScore', () => {
+  it('computes points server-side, saves, and returns rank 1 for the first score', async () => {
     const repo = new InMemoryRepository();
     const result = await submitScore(repo, {
-      playerName: "Tekio",
+      playerName: 'Tekio',
       boardSize: 5,
       moves: 7,
       elapsedMs: 42_310,
@@ -55,32 +55,32 @@ describe("submitScore", () => {
     expect(result.score.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
   });
 
-  it("ignores a client-supplied points value", async () => {
+  it('ignores a client-supplied points value', async () => {
     const repo = new InMemoryRepository();
     const result = await submitScore(repo, {
-      playerName: "Tekio",
+      playerName: 'Tekio',
       boardSize: 5,
       moves: 7,
       elapsedMs: 42_310,
       points: 99_999,
-    } as unknown as Record<string, unknown>);
+    });
 
     expect(result.score.points).toBe(2_290);
   });
 
-  it("throws ValidationError for an invalid body", async () => {
+  it('throws ValidationError for an invalid body', async () => {
     const repo = new InMemoryRepository();
     await expect(
-      submitScore(repo, { playerName: "", boardSize: 10, moves: -1, elapsedMs: -1 }),
+      submitScore(repo, { playerName: '', boardSize: 10, moves: -1, elapsedMs: -1 }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
 });
 
-describe("listTopScores", () => {
-  it("returns scores with default limit and null boardSize", async () => {
+describe('listTopScores', () => {
+  it('returns scores with default limit and null boardSize', async () => {
     const repo = new InMemoryRepository();
     await submitScore(repo, {
-      playerName: "Tekio",
+      playerName: 'Tekio',
       boardSize: 5,
       moves: 7,
       elapsedMs: 42_310,
@@ -92,29 +92,29 @@ describe("listTopScores", () => {
     expect(result.boardSize).toBeNull();
   });
 
-  it("applies the boardSize filter", async () => {
+  it('applies the boardSize filter', async () => {
     const repo = new InMemoryRepository();
     await submitScore(repo, {
-      playerName: "A",
+      playerName: 'A',
       boardSize: 5,
       moves: 7,
       elapsedMs: 0,
     });
     await submitScore(repo, {
-      playerName: "B",
+      playerName: 'B',
       boardSize: 6,
       moves: 7,
       elapsedMs: 0,
     });
 
-    const result = await listTopScores(repo, { boardSize: "5" });
+    const result = await listTopScores(repo, { boardSize: '5' });
     expect(result.items.length).toBe(1);
     expect(result.items[0]?.boardSize).toBe(5);
     expect(result.boardSize).toBe(5);
   });
 
-  it("throws ValidationError for an invalid limit", async () => {
+  it('throws ValidationError for an invalid limit', async () => {
     const repo = new InMemoryRepository();
-    await expect(listTopScores(repo, { limit: "0" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(listTopScores(repo, { limit: '0' })).rejects.toBeInstanceOf(ValidationError);
   });
 });

@@ -1,28 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 import {
   BASE_POINTS_PER_CELL,
   computePoints,
   MOVE_PENALTY_PER_EXCESS_MOVE,
   parMoves,
   TIME_PENALTY_PER_SECOND,
-} from "./score.js";
+} from './score.js';
 
-describe("parMoves", () => {
-  it("returns boardSize times two", () => {
+describe('parMoves', () => {
+  it('returns boardSize times two', () => {
     expect(parMoves(3)).toBe(6);
     expect(parMoves(5)).toBe(10);
     expect(parMoves(7)).toBe(14);
   });
 });
 
-describe("computePoints", () => {
-  it("awards the full base value when moves and time are zero", () => {
+describe('computePoints', () => {
+  it('awards the full base value when moves and time are zero', () => {
     expect(computePoints({ boardSize: 5, moves: 0, elapsedMs: 0 })).toBe(
       5 * 5 * BASE_POINTS_PER_CELL,
     );
   });
 
-  it("applies no move penalty at exactly parMoves", () => {
+  it('applies no move penalty at exactly parMoves', () => {
     const boardSize = 5;
     const moves = parMoves(boardSize);
     expect(computePoints({ boardSize, moves, elapsedMs: 0 })).toBe(
@@ -30,15 +30,15 @@ describe("computePoints", () => {
     );
   });
 
-  it("applies a move penalty for every move above par", () => {
+  it('applies a move penalty for every move above par', () => {
     const boardSize = 5;
     const excess = 3;
-    expect(
-      computePoints({ boardSize, moves: parMoves(boardSize) + excess, elapsedMs: 0 }),
-    ).toBe(boardSize * boardSize * BASE_POINTS_PER_CELL - excess * MOVE_PENALTY_PER_EXCESS_MOVE);
+    expect(computePoints({ boardSize, moves: parMoves(boardSize) + excess, elapsedMs: 0 })).toBe(
+      boardSize * boardSize * BASE_POINTS_PER_CELL - excess * MOVE_PENALTY_PER_EXCESS_MOVE,
+    );
   });
 
-  it("applies a time penalty per full second", () => {
+  it('applies a time penalty per full second', () => {
     const boardSize = 5;
     const elapsedMs = 4_500;
     const seconds = Math.floor(elapsedMs / 1_000);
@@ -47,11 +47,11 @@ describe("computePoints", () => {
     );
   });
 
-  it("floors the result at zero", () => {
+  it('floors the result at zero', () => {
     expect(computePoints({ boardSize: 3, moves: 1_000, elapsedMs: 86_400_000 })).toBe(0);
   });
 
-  it("rounds the final value", () => {
+  it('rounds the final value', () => {
     // All inputs are integers, so rounding should be a no-op, but the
     // contract still specifies round().
     expect(computePoints({ boardSize: 4, moves: 0, elapsedMs: 0 })).toBe(
@@ -59,7 +59,7 @@ describe("computePoints", () => {
     );
   });
 
-  it("computes correctly for several board sizes", () => {
+  it('computes correctly for several board sizes', () => {
     expect(computePoints({ boardSize: 3, moves: 0, elapsedMs: 0 })).toBe(900);
     expect(computePoints({ boardSize: 4, moves: 0, elapsedMs: 0 })).toBe(1_600);
     expect(computePoints({ boardSize: 5, moves: 0, elapsedMs: 0 })).toBe(2_500);

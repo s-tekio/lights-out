@@ -1,5 +1,5 @@
-import type { Score } from "../domain/score.js";
-import type { ListTopOptions, ScoreRepository } from "../ports/score-repository.js";
+import type { Score } from '../domain/score.js';
+import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
 
 /**
  * In-memory implementation of {@link ScoreRepository}.
@@ -11,12 +11,12 @@ import type { ListTopOptions, ScoreRepository } from "../ports/score-repository.
 export class InMemoryScoreRepository implements ScoreRepository {
   private readonly scores: Score[] = [];
 
-  async save(score: Score): Promise<Score> {
+  save(score: Score): Promise<Score> {
     this.scores.push(score);
-    return score;
+    return Promise.resolve(score);
   }
 
-  async listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
+  listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
     const filtered =
       boardSize === null
         ? this.scores
@@ -32,7 +32,7 @@ export class InMemoryScoreRepository implements ScoreRepository {
       return a.createdAt.localeCompare(b.createdAt);
     });
 
-    return ordered.slice(0, limit);
+    return Promise.resolve(ordered.slice(0, limit));
   }
 
   async rankOf(score: Score): Promise<number> {

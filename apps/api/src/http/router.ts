@@ -4,11 +4,11 @@ import {
   MethodNotAllowedError,
   NotFoundError,
   ValidationError,
-} from "../domain/errors.js";
-import { listTopScores, submitScore } from "../application/ranking-service.js";
-import type { ScoreRepository } from "../ports/score-repository.js";
+} from '../domain/errors.js';
+import { listTopScores, submitScore } from '../application/ranking-service.js';
+import type { ScoreRepository } from '../ports/score-repository.js';
 
-const VERSION = "0.1.0";
+const VERSION = '0.1.0';
 
 export type ApiRequest = {
   method: string;
@@ -18,17 +18,17 @@ export type ApiRequest = {
 };
 
 function parseJsonBody(body: unknown): unknown {
-  if (typeof body !== "string") {
+  if (typeof body !== 'string') {
     return body;
   }
-  if (body === "") {
+  if (body === '') {
     return undefined;
   }
   try {
     return JSON.parse(body) as unknown;
   } catch {
-    throw new ValidationError("Malformed JSON body.", [
-      { field: "body", message: "must be valid JSON" },
+    throw new ValidationError('Malformed JSON body.', [
+      { field: 'body', message: 'must be valid JSON' },
     ]);
   }
 }
@@ -42,10 +42,10 @@ export type ApiResponse = {
 type RouteHandler = (request: ApiRequest, deps: { repo: ScoreRepository }) => Promise<ApiResponse>;
 
 const jsonHeaders: Record<string, string> = {
-  "Content-Type": "application/json; charset=utf-8",
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  'Content-Type': 'application/json; charset=utf-8',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
 };
 
 function ok(body: unknown): ApiResponse {
@@ -68,7 +68,7 @@ function noContent(): ApiResponse {
   return {
     statusCode: 204,
     headers: jsonHeaders,
-    body: "",
+    body: '',
   };
 }
 
@@ -87,10 +87,10 @@ function errorResponse(error: AppError): ApiResponse {
 }
 
 const routes: Record<string, Record<string, RouteHandler>> = {
-  "/api/health": {
-    GET: async () => ok({ status: "ok", version: VERSION }),
+  '/api/health': {
+    GET: () => Promise.resolve(ok({ status: 'ok', version: VERSION })),
   },
-  "/api/scores": {
+  '/api/scores': {
     POST: async (request, { repo }) => {
       const result = await submitScore(repo, request.body);
       return created(result);
@@ -102,12 +102,8 @@ const routes: Record<string, Record<string, RouteHandler>> = {
   },
 };
 
-function logUnexpectedError(
-  request: ApiRequest,
-  error: unknown,
-): void {
-  const message =
-    error instanceof Error ? error.message : String(error);
+function logUnexpectedError(request: ApiRequest, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
   console.error(`Unexpected error on ${request.method} ${request.path}: ${message}`);
 }
 
@@ -116,20 +112,18 @@ export async function route(
   deps: { repo: ScoreRepository },
 ): Promise<ApiResponse> {
   try {
-    if (request.method === "OPTIONS") {
+    if (request.method === 'OPTIONS') {
       return noContent();
     }
 
     const methods = routes[request.path];
     if (methods === undefined) {
-      return errorResponse(new NotFoundError("Route not found."));
+      return errorResponse(new NotFoundError('Route not found.'));
     }
 
     const handler = methods[request.method];
     if (handler === undefined) {
-      return errorResponse(
-        new MethodNotAllowedError(`Method ${request.method} is not allowed.`),
-      );
+      return errorResponse(new MethodNotAllowedError(`Method ${request.method} is not allowed.`));
     }
 
     const parsedBody = parseJsonBody(request.body);
@@ -145,6 +139,6 @@ export async function route(
     }
 
     logUnexpectedError(request, error);
-    return errorResponse(new InternalError("An unexpected error occurred."));
+    return errorResponse(new InternalError('An unexpected error occurred.'));
   }
 }
