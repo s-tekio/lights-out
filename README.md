@@ -136,8 +136,9 @@ That profile punishes provisioned, always-on infrastructure and rewards per-requ
 
 #### Why serverless wins here
 
-1. **Cost matches the profile.** Nothing is billed while nobody plays. The estimate below is
-   roughly $1-3/month against $60-90/month for the classic stack.
+1. **Cost matches the profile.** Nothing is billed while nobody plays. The estimate below is about
+   $0.70/month at realistic hobby traffic and roughly $3/month at ten times that, against
+   $60-90/month for the classic stack.
 2. **Availability is free and real.** CloudFront, API Gateway, Lambda and DynamoDB are all
    multi-AZ by default. The assignment asks for at least two availability zones for components
    serving production traffic; serverless exceeds that without a single line of Terraform to
@@ -168,15 +169,16 @@ That profile punishes provisioned, always-on infrastructure and rewards per-requ
 
 ## Cost estimate
 
-Assumptions: a hobby project on a student account, roughly 10 000 leaderboard reads and 500 score
-writes per month, under 1 GB of data transfer, no custom domain, logs retained for 14 days.
+Assumptions: a hobby project on a student account, 500 score submissions and 10 000 leaderboard
+reads per month, roughly 20 000 static asset requests, under 1 GB of data transfer, no custom
+domain, logs retained for 14 days.
 
 | Service | Assumption | Monthly estimate |
 | --- | --- | --- |
-| CloudFront | < 1 GB transfer, ~15 000 requests | $0.00 (free tier: 1 TB + 10 M requests) |
+| CloudFront | ~30 000 requests, < 1 GB transfer | $0.00 (free tier: 1 TB + 10 M requests) |
 | S3 | < 1 GB static assets | ~$0.03 |
-| API Gateway (HTTP API) | ~15 000 requests | ~$0.02 ($1.00 per million) |
-| Lambda | ~15 000 invocations, 256 MB, ~50 ms | $0.00 (free tier: 1 M requests, 400 000 GB-s) |
+| API Gateway (HTTP API) | 10 500 requests | ~$0.01 ($1.00 per million) |
+| Lambda | 10 500 invocations, 256 MB, ~50 ms | $0.00 (free tier: 1 M requests, 400 000 GB-s) |
 | DynamoDB on demand | 500 writes, 10 000 reads, < 1 GB | ~$0.05 |
 | DynamoDB PITR | < 1 GB | ~$0.20 |
 | CloudWatch Logs | ~200 MB ingest, 14-day retention | ~$0.10 |
@@ -184,7 +186,12 @@ writes per month, under 1 GB of data transfer, no custom domain, logs retained f
 | AWS Budgets | 1 budget | $0.00 (first two budgets are free) |
 | ACM certificate | Public certificate on CloudFront | $0.00 |
 | Secrets Manager | Not used: the application has no secrets | $0.00 |
-| **Total** | | **~$0.70-3.00/month** |
+| **Total at these assumptions** | | **~$0.70/month** |
+
+The dominant lines are CloudWatch and DynamoDB point-in-time recovery, and neither depends on
+traffic. Multiplying every assumption by ten moves the total to roughly **$3/month**: the
+per-request lines stay inside the free tiers, and nothing here bills per hour while idle. That is
+the shape of the win — the cost tracks usage instead of existing.
 
 Two traps this estimate deliberately avoids: a **NAT Gateway** (~$33/month for existing) and
 **CloudWatch Logs with no retention set** (logs accumulate forever and bill forever). Both are
@@ -195,8 +202,8 @@ traffic.
 
 ## Deployment
 
-**Not yet implemented.** Infrastructure as code does not exist in this repository yet; the
-`infra/` directory is empty. The planned shape is:
+**Not yet implemented.** Infrastructure as code does not exist in this repository yet; no `infra/`
+directory has been created. The planned shape is:
 
 1. A minimal, manually applied bootstrap: the state bucket (versioned, encrypted, public access
    blocked) and its lock table, plus the CI role.

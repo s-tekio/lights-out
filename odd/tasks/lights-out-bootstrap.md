@@ -1,6 +1,6 @@
 # Feature: lights-out-bootstrap
 
-**Status:** in progress
+**Status:** complete
 **Branch:** `feat/bootstrap`
 **Created:** 2026-09-24
 **Workflow:** ODD (Organic Driven Development)
@@ -59,7 +59,7 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 - [x] **T10 — Wire frontend to backend.** API client, score submission on win, leaderboard view.
 - [x] **T11 — Documentation.** `README.md` (functional description, architecture decision,
   Mermaid diagram, cost estimate, deploy/destroy) and `docs/architecture.md`.
-- [ ] **T12 — Verification.** Install, lint, typecheck, test and build all green from a clean state.
+- [x] **T12 — Verification.** Install, lint, typecheck, test and build all green from a clean state.
 
 ## Non-goals (this feature)
 
@@ -81,7 +81,8 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 | T5, T6, T7 | `44b55ed`, `c7e2de5` | `npm run lint`, `format:check`, `typecheck`, `test:coverage` (87% statements / 92% branches / 100% functions) and `build` all green. Pre-commit hook observed blocking a staged lint error. |
 | T8, T9 | `0ab8725`, `fee31f0` | 96 tests total (67 API, 29 web). Web coverage 94.9% statements / 96.4% branches. Parent smoke test: `GET localhost:5173/` returned 200 and `GET localhost:5173/api/health` returned the API payload through the Vite proxy. |
 | T10 | `888d7a5` | 124 tests total (67 API, 57 web). Parent verified: no casts on response bodies, `points` never appears in the submission payload, `role="alert"` on both error messages, `disabled={submitting}` on the submit control. |
-| T11 | pending | `README.md` and `docs/architecture.md`. Deployment and teardown sections state explicitly that infrastructure is not implemented, per DOC-3. |
+| T11 | `669602a` | `README.md` and `docs/architecture.md`. Deployment and teardown sections state explicitly that infrastructure is not implemented, per DOC-3. |
+| T12 | bookkeeping (no code) | Independent verification from a clean state by `gentle-ai-verify`: `npm ci` plus all six gates green after deleting `node_modules`, `dist/` and `coverage/`. 124 tests. Contract conformance verified endpoint by endpoint, including hand-checked points and ordering across ties. Standards rules TS-1, TS-2, TS-3, SEC-1, SEC-8, OB-2, TE-1, SC-2 and DOC-3 all verified. |
 
 ## Scope violations caught in review
 
@@ -90,6 +91,7 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 | T5–T7 | The writer ran `prettier --write` over the whole repository, reformatting `docs/api-contract.md`, `docs/engineering-standards.md` and `odd/tasks/lights-out-bootstrap.md`, which were outside its allowed edit surfaces. It also ticked task checkboxes in `odd/`, which the parent owns. | All three files reverted. Root cause fixed: Markdown is now excluded from Prettier, because table padding rewrites every row of a table when one cell changes. |
 | T5–T7 | The writer invented the contact address `security@tekio.dev` in `SECURITY.md`. | Replaced with GitHub private vulnerability reporting plus an explicit note that the repository path must be filled in. A fabricated contact address is worse than none: reports would silently go nowhere. |
 | T8, T9 | The writer left the whole Vite template scaffolding on disk (`App.css`, `index.css`, `assets/`, `public/`, `.oxlintrc.json`, `tsconfig.app.json`, `tsconfig.node.json`, a stub `README.md` and a duplicate `.gitignore`) stating that file deletions were avoided. It also installed two Vite majors and hid the resulting type conflict behind `react() as unknown as Plugin`, kept an unused `@testing-library/user-event` dependency, used `role="grid"` on a `div` of buttons (invalid ARIA), and cast a DOM value with `as DifficultyId`. | All six corrected in one review round and re-verified by the parent: a single Vite major (7.3.6), no cast, `role="group"`, a checked `isDifficultyId` guard, dead files deleted, unused dependencies removed. |
+| T12 | Independent verification found the cost estimate contradicted itself: the stated assumptions implied ~10 500 API requests while the table used ~15 000, and the total's upper bound was not derived from any assumption. It also found the README claimed `infra/` was empty when the directory does not exist. | Both corrected. The request counts are now consistent and the total is stated at the assumptions with the ten-times-traffic figure explained separately. |
 
 ## Next feature (not this one)
 
