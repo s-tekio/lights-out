@@ -108,6 +108,39 @@ Two corrections were applied by the parent on top of the writer's output:
 | Updated the README, which had gone stale. | It still advertised 3×3/5×5/7×7, a board-size filter, 124 tests and 94% web coverage. |
 | Corrected a test-count error that independent verification caught. | The README and this document both said 170 tests; the real total is 171 (71 API + 100 web). |
 
+## Revision 2 — levels reverted, server authority recorded
+
+After playing the 5×5/7×7/9×9 version the user judged 5×5 too short for Easy and asked for the
+previous levels back. The board module's guard range stays at 3..9 so it mirrors what the API can
+return rather than the set of levels; only `DIFFICULTIES` changed.
+
+| Difficulty | `boardSize` | `scrambleDepth` | `minPresses` |
+| --- | --- | --- | --- |
+| easy | 3 | 5 | 3 |
+| normal | 5 | 15 | 3 |
+| hard | 7 | 30 | 3 |
+
+On 3×3 the parity set of five presses has an odd size, so it can only be 1, 3 or 5. Rejecting size 1
+leaves 3 or 5, which is what the `minPresses` guarantee now enforces on this board.
+
+The API keeps accepting 3..9 even though the levels only use 3, 5 and 7. The reason is recorded in the
+contract: the level sizes have already been retuned twice, and each retune would otherwise force a
+contract change and an API deployment. A wider accepted range also keeps the API unaware of game
+options, which is what lets a score recorded at any accepted size stay readable.
+
+The leaderboard's server authority was confirmed against the code and recorded in
+`docs/architecture.md`: the client holds no score state, the only local value is the player's name,
+and every load, filter change and refresh issues a real request. This is a constraint to preserve
+through the DynamoDB work, not an accident of the current implementation.
+
+### Test data must be derived, not hardcoded
+
+The level retune broke five tests that had hardcoded board sizes (5, 7 and 9) and level labels. The
+fix was to derive the expected values from `DIFFICULTIES` rather than substituting new literals: the
+label format is the behaviour under test, while the sizes are tuning values that get retuned. A test
+that pins a tuning value fails for the wrong reason and invites a copy-paste fix that leaves the next
+retune just as fragile.
+
 ## Known test limitation
 
 The help dialog currently has exactly one focusable element, its Close button. The Tab and Shift+Tab

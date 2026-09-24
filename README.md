@@ -9,7 +9,7 @@ random presses to the solved board, which guarantees every puzzle is solvable.
 
 ## What it does
 
-- Play Lights Out at three difficulties (5×5, 7×7, 9×9), with a move counter and a timer that
+- Play Lights Out at three difficulties (3×3, 5×5, 7×7), with a move counter and a timer that
   starts on your first press.
 - Submit a finished game under a player name and see the rank it earned.
 - Read the leaderboard, filtered by difficulty level, ordered by points.

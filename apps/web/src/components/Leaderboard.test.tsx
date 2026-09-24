@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchLeaderboard, type LeaderboardResponse, type Score } from '../api/scores';
-import { DIFFICULTIES } from '../game/difficulty';
+import { DIFFICULTIES, findDifficultyById, formatDifficultyLabel } from '../game/difficulty';
 import { Leaderboard } from './Leaderboard';
 
 vi.mock('../api/scores', () => ({
@@ -125,7 +125,10 @@ describe('Leaderboard', () => {
 
     fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: 'easy' } });
     await waitFor(() =>
-      expect(fetchLeaderboard).toHaveBeenLastCalledWith({ limit: 10, boardSize: 5 }),
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: findDifficultyById('easy').boardSize,
+      }),
     );
   });
 
@@ -139,7 +142,10 @@ describe('Leaderboard', () => {
 
     fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: 'hard' } });
     await waitFor(() =>
-      expect(fetchLeaderboard).toHaveBeenLastCalledWith({ limit: 10, boardSize: 9 }),
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: findDifficultyById('hard').boardSize,
+      }),
     );
 
     fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: '' } });
@@ -149,15 +155,17 @@ describe('Leaderboard', () => {
   });
 
   it('shows the level label for a known board size', async () => {
+    const normal = findDifficultyById('normal');
+
     mockedFetchLeaderboard.mockResolvedValue({
-      items: [validScore],
+      items: [{ ...validScore, boardSize: normal.boardSize }],
       limit: 10,
-      boardSize: 5,
+      boardSize: normal.boardSize,
     });
     render(<Leaderboard />);
 
     await waitFor(() => expect(screen.getByText('Tekio')).toBeInTheDocument());
-    expect(screen.getByRole('cell', { name: 'Easy (5×5)' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: formatDifficultyLabel(normal) })).toBeInTheDocument();
   });
 
   it('renders the raw size for an unknown board size', async () => {

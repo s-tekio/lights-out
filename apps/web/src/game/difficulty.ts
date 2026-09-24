@@ -14,13 +14,16 @@ export type Difficulty = {
   readonly minPresses: number;
 };
 
+// Guard range for board creation. It mirrors the range the API accepts, not the
+// set of levels: the board module stays generic so a score stored at any
+// accepted size can still be rendered, even if no current level produces it.
 export const MIN_BOARD_SIZE = 3;
 export const MAX_BOARD_SIZE = 9;
 
 export const DIFFICULTIES: readonly Difficulty[] = [
-  { id: 'easy', label: 'Easy', boardSize: 5, scrambleDepth: 10, minPresses: 3 },
-  { id: 'normal', label: 'Normal', boardSize: 7, scrambleDepth: 20, minPresses: 3 },
-  { id: 'hard', label: 'Hard', boardSize: 9, scrambleDepth: 35, minPresses: 3 },
+  { id: 'easy', label: 'Easy', boardSize: 3, scrambleDepth: 5, minPresses: 3 },
+  { id: 'normal', label: 'Normal', boardSize: 5, scrambleDepth: 15, minPresses: 3 },
+  { id: 'hard', label: 'Hard', boardSize: 7, scrambleDepth: 30, minPresses: 3 },
 ];
 
 export const DEFAULT_DIFFICULTY_ID: DifficultyId = 'normal';

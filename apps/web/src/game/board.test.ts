@@ -30,7 +30,7 @@ describe('createBoard', () => {
 
 describe('DIFFICULTIES', () => {
   it('uses board sizes 5, 7 and 9 for easy, normal and hard', () => {
-    expect(DIFFICULTIES.map((difficulty) => difficulty.boardSize)).toEqual([5, 7, 9]);
+    expect(DIFFICULTIES.map((difficulty) => difficulty.boardSize)).toEqual([3, 5, 7]);
   });
 });
 

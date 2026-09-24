@@ -53,27 +53,33 @@ describe('findDifficultyByBoardSize', () => {
 
 describe('formatDifficultyLabel', () => {
   it('combines the difficulty label with its board size', () => {
-    const expectedLabels: Record<string, string> = {
-      easy: 'Easy (5×5)',
-      normal: 'Normal (7×7)',
-      hard: 'Hard (9×9)',
-    };
-
+    // Derive the expected value from the difficulty data instead of hardcoding
+    // the sizes: the label format is the behaviour under test, the numbers are
+    // tuning values that get retuned.
     for (const difficulty of DIFFICULTIES) {
-      expect(formatDifficultyLabel(difficulty)).toBe(expectedLabels[difficulty.id]);
+      const { boardSize } = difficulty;
+      expect(formatDifficultyLabel(difficulty)).toBe(
+        `${difficulty.label} (${boardSize}×${boardSize})`,
+      );
     }
   });
 });
 
 describe('formatBoardSizeLabel', () => {
   it('returns the difficulty label for a known board size', () => {
-    expect(formatBoardSizeLabel(5)).toBe('Easy (5×5)');
-    expect(formatBoardSizeLabel(7)).toBe('Normal (7×7)');
-    expect(formatBoardSizeLabel(9)).toBe('Hard (9×9)');
+    for (const difficulty of DIFFICULTIES) {
+      expect(formatBoardSizeLabel(difficulty.boardSize)).toBe(formatDifficultyLabel(difficulty));
+    }
   });
 
   it('falls back to the raw size when no difficulty matches', () => {
-    expect(formatBoardSizeLabel(4)).toBe('4×4');
+    // 4 sits inside the accepted range but no level uses it. Asserting that
+    // explicitly means this test fails loudly, rather than silently changing
+    // meaning, if a level is ever retuned to 4.
+    const unmappedSize = 4;
+    expect(findDifficultyByBoardSize(unmappedSize)).toBeUndefined();
+    expect(formatBoardSizeLabel(unmappedSize)).toBe('4×4');
+
     expect(formatBoardSizeLabel(99)).toBe('99×99');
   });
 });

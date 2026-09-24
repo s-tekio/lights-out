@@ -38,7 +38,7 @@ Request body:
 | Field | Type | Rules |
 | --- | --- | --- |
 | `playerName` | string | Required. Trimmed. 1-24 characters. Only letters, digits, space, `_`, `-`, `.`. |
-| `boardSize` | integer | Required. 3 to 9 inclusive. The range was widened from 3..7 to 3..9; the change is backwards compatible because every previously accepted value remains valid. |
+| `boardSize` | integer | Required. 3 to 9 inclusive. The API accepts a general range while the UI currently offers 3, 5 and 7; see the note below. |
 | `moves` | integer | Required. 0 to 1000 inclusive. |
 | `elapsedMs` | integer | Required. 0 to 86 400 000 inclusive (24 h). |
 
@@ -72,7 +72,7 @@ Query parameters:
 | Parameter | Type | Default | Rules |
 | --- | --- | --- | --- |
 | `limit` | integer | `10` | 1 to 100 inclusive. |
-| `boardSize` | integer | all sizes | 3 to 9 inclusive. When present, only scores for that board size are returned. The range was widened from 3..7 to 3..9; the change is backwards compatible. |
+| `boardSize` | integer | all sizes | 3 to 9 inclusive. When present, only scores for that board size are returned. |
 
 Response `200 OK`:
 
@@ -116,6 +116,17 @@ Every non-2xx response uses the same body:
 | `NOT_FOUND` | 404 | Unknown route. |
 | `METHOD_NOT_ALLOWED` | 405 | Known route, unsupported method. |
 | `INTERNAL_ERROR` | 500 | Unexpected server failure. Internal details are logged, never returned. |
+
+## Board size range
+
+The API accepts any `boardSize` from 3 to 9. The UI currently offers three levels: 3, 5 and 7.
+
+The accepted range is deliberately wider than the set of levels. Retuning which board sizes the
+levels use must not force a contract change and an API deployment, and the level sizes have already
+been retuned twice. Keeping the range general also keeps the API unaware of game options: it stores
+and returns a board size, not a difficulty label. A score recorded at any accepted size stays
+readable, which is what lets the UI render a level label for a size it recognises and fall back to
+the plain size otherwise.
 
 ## Scoring formula
 

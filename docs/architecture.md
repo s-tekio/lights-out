@@ -69,6 +69,29 @@ browser                CloudFront        API Gateway     Lambda              Dyn
   │<────────────────────────┴────────────────┴─────────────┤ 200 items           │
 ```
 
+## Server authority over the leaderboard
+
+**The leaderboard has no client-side state.** This is a deliberate constraint, not an accident of
+the current implementation, and it must survive the move to DynamoDB.
+
+- The client never stores, caches or optimistically fabricates scores. The only value it keeps
+  locally is the player's name, so the submission form can prefill.
+- Every load, filter change and refresh issues a real request. There is no in-memory list that a
+  component can read instead of asking the server.
+- The server is the only writer. `POST /api/scores` computes the points, and `GET /api/scores`
+  reads them back.
+- The in-memory repository is the **server's** store, not the browser's. Swapping it for the
+  DynamoDB adapter changes where the server reads from and nothing on the wire.
+
+Why it matters here specifically: the moment the client keeps a copy, two things break. A score
+submitted on another device would never appear, and the leaderboard would quietly disagree with the
+database. Any future caching must be an explicit, documented decision with an invalidation story,
+not an optimisation nobody remembers making.
+
+The consequence for the DynamoDB adapter is that every read path the UI can reach has to exist as a
+real access pattern. A sortable column is not a display concern: it is a query, and it needs a key
+or an index to be efficient. That is recorded in the data model below.
+
 ## Planned DynamoDB data model
 
 **Not implemented yet.** Recorded here so the adapter is written against a deliberate design
