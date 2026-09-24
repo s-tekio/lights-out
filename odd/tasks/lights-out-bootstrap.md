@@ -40,18 +40,26 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 
 - [x] **T1 — Repository bootstrap.** `git init`, root `package.json` with npm workspaces,
   `.gitignore`, `.nvmrc`, `.editorconfig`.
-- [ ] **T2 — Frontend scaffold.** Vite + React + TypeScript app in `apps/web`, with linting and
-  a test setup.
-- [ ] **T3 — Lights Out game.** Board model, move resolution, solved detection, move counter and
-  timer, playable UI.
-- [ ] **T4 — Ranking domain.** Score validation rules, ranking types, repository port and an
+- [x] **T2 — Ranking domain.** Score validation rules, scoring formula, repository port and an
   in-memory adapter, with unit tests.
-- [ ] **T5 — Ranking HTTP layer.** Lambda handlers for score submission and leaderboard read, plus
-  a local development server that reuses the same handlers, with tests.
-- [ ] **T6 — Wire frontend to backend.** API client, score submission on win, leaderboard view.
-- [ ] **T7 — Documentation.** `README.md` (functional description, architecture decision,
+- [x] **T3 — Ranking HTTP layer.** Framework-agnostic router shared by the Lambda handler and a
+  local development server, with tests.
+- [x] **T4 — Engineering standards.** Author `docs/engineering-standards.md`: the normative,
+  ID-tagged rules for source control, TypeScript, architecture, testing, security, observability,
+  FinOps, Terraform and documentation, each with its enforcement mechanism.
+- [ ] **T5 — Lint and format enforcement.** Root ESLint flat config with type-aware rules,
+  Prettier check, and pre-commit hooks (husky + lint-staged).
+- [ ] **T6 — CI pipeline and coverage gate.** GitHub Actions running lint, typecheck, test with
+  coverage thresholds, build, secret scanning and dependency audit; Dependabot configuration.
+- [ ] **T7 — Repository governance docs.** `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`.
+- [ ] **T8 — Frontend scaffold.** Vite + React + TypeScript app in `apps/web`, conforming to the
+  standards enforced by T5 and T6.
+- [ ] **T9 — Lights Out game.** Board model, move resolution, solved detection, move counter and
+  timer, playable UI.
+- [ ] **T10 — Wire frontend to backend.** API client, score submission on win, leaderboard view.
+- [ ] **T11 — Documentation.** `README.md` (functional description, architecture decision,
   Mermaid diagram, cost estimate, deploy/destroy) and `docs/architecture.md`.
-- [ ] **T8 — Verification.** Install, typecheck, test and build all green from a clean state.
+- [ ] **T12 — Verification.** Install, lint, typecheck, test and build all green from a clean state.
 
 ## Non-goals (this feature)
 
@@ -65,7 +73,10 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 
 | Task | Commit | Evidence |
 | --- | --- | --- |
-| T1 | `2b1ac18` | `git log --oneline` shows the bootstrap commit on `feat/bootstrap`; `npm workspaces` declared in root `package.json`. |
+| T1 | `2b1ac18` | `git log --oneline` shows the bootstrap commit on `feat/bootstrap`; npm workspaces declared in root `package.json`. |
+| Contract | `f5460f9` | `docs/api-contract.md` frozen before either application was written. |
+| T2, T3 | `d767f9b` | 67 tests pass; `npm run typecheck`, `npm run test` and `npm run build` green for `@lights-out/api`. Parent smoke test confirmed `201` with `points: 2290`, `400` with field details, `404`, `405`. |
+| T2, T3 fix | pending | Parent review found three defects the writer's smoke test missed: `npm run dev` needed a prior build, `OPTIONS` returned `405` while being advertised, and expected `400`s logged stack traces. All three fixed and re-verified by the parent. |
 
 ## Next feature (not this one)
 
