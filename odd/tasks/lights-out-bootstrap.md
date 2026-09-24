@@ -38,7 +38,7 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 
 ## Tasks
 
-- [ ] **T1 — Repository bootstrap.** `git init`, root `package.json` with npm workspaces,
+- [x] **T1 — Repository bootstrap.** `git init`, root `package.json` with npm workspaces,
   `.gitignore`, `.nvmrc`, `.editorconfig`.
 - [ ] **T2 — Frontend scaffold.** Vite + React + TypeScript app in `apps/web`, with linting and
   a test setup.
@@ -65,7 +65,7 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 
 | Task | Commit | Evidence |
 | --- | --- | --- |
-| — | — | Pending |
+| T1 | `2b1ac18` | `git log --oneline` shows the bootstrap commit on `feat/bootstrap`; `npm workspaces` declared in root `package.json`. |
 
 ## Next feature (not this one)
 
