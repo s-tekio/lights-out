@@ -126,13 +126,19 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
       >
         <button
           type="button"
+          className="leaderboard__sort"
           aria-label={accessibleLabel}
           onClick={() => {
             handleSort(column);
           }}
         >
+          {/* The arrow shapes carry the state without relying on colour, and the
+              neutral icon marks a column as sortable before it is activated.
+              aria-hidden because aria-sort and the button label already say it. */}
+          <span className="leaderboard__sort-icon" aria-hidden="true">
+            {isActive ? (order === 'asc' ? '▲' : '▼') : '↕'}
+          </span>
           {label}
-          {isActive && <span aria-hidden="true"> {order === 'asc' ? '▲' : '▼'}</span>}
         </button>
       </th>
     );

@@ -152,6 +152,39 @@ body {
   font-size: 0.875rem;
 }
 
+/* The header button exists only to make the header keyboard reachable, so it is
+   reset to read as plain header text. Without this reset it keeps the browser's
+   default button chrome, which makes one column look like a control while its
+   neighbours look like labels. */
+.leaderboard__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.leaderboard__sort-icon {
+  opacity: 0.5;
+}
+
+.leaderboard__th--sorted .leaderboard__sort-icon {
+  color: var(--color-accent);
+  opacity: 1;
+}
+
+/* Removing the default button chrome also removes its focus ring, so keyboard
+   users would have no focus indicator at all without this rule. */
+.leaderboard__sort:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+  border-radius: 0.125rem;
+}
+
 .leaderboard__error {
   color: #f87171;
 }
