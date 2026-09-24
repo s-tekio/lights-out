@@ -35,6 +35,7 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 | Repository root | `project/` | `commit-academy/` | The public deliverable must not contain course material (assignment text, archives). |
 | Package manager | npm workspaces | pnpm / yarn | Only npm is installed in the environment; workspaces avoid a second lockfile per app. |
 | Test runner | Vitest | `node:test`, Jest | Shares configuration with Vite, works for both browser and Node packages with one toolchain. |
+| Repository governance docs | None | `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE` | Added during T7, then removed at the user's request: this is a practice project and the governance overhead is not warranted. Consequence accepted: with no `LICENSE`, the repository defaults to all rights reserved. |
 
 ## Tasks
 
@@ -51,7 +52,10 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
   Prettier check, and pre-commit hooks (husky + lint-staged).
 - [x] **T6 — CI pipeline and coverage gate.** GitHub Actions running lint, typecheck, test with
   coverage thresholds, build, secret scanning and dependency audit; Dependabot configuration.
-- [x] **T7 — Repository governance docs.** `CONTRIBUTING.md`, `SECURITY.md`, `LICENSE`.
+- [x] **T7 — Repository governance docs.** Added `CONTRIBUTING.md`, `SECURITY.md` and `LICENSE`,
+  then removed all three at the user's request. This is a practice project; the governance
+  overhead is not warranted. The standards rules they supported (secrets never committed, no
+  internal detail in errors) remain in force through tooling and review.
 - [x] **T8 — Frontend scaffold.** Vite + React + TypeScript app in `apps/web`, conforming to the
   standards enforced by T5 and T6.
 - [x] **T9 — Lights Out game.** Board model, move resolution, solved detection, move counter and

@@ -258,7 +258,3 @@ These are real and current, not hypothetical:
 2. CI/CD: `terraform plan` on pull requests, `apply` on `main`.
 3. Anti-cheat: server-issued puzzle state so a submission can be validated.
 4. Accounts, so scores belong to a verified identity.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
