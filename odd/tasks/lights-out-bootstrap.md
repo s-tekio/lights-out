@@ -56,8 +56,8 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
   standards enforced by T5 and T6.
 - [x] **T9 — Lights Out game.** Board model, move resolution, solved detection, move counter and
   timer, playable UI.
-- [ ] **T10 — Wire frontend to backend.** API client, score submission on win, leaderboard view.
-- [ ] **T11 — Documentation.** `README.md` (functional description, architecture decision,
+- [x] **T10 — Wire frontend to backend.** API client, score submission on win, leaderboard view.
+- [x] **T11 — Documentation.** `README.md` (functional description, architecture decision,
   Mermaid diagram, cost estimate, deploy/destroy) and `docs/architecture.md`.
 - [ ] **T12 — Verification.** Install, lint, typecheck, test and build all green from a clean state.
 
@@ -79,7 +79,9 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 | T2, T3 fix | `d767f9b` | Parent review found three defects the writer's smoke test missed: `npm run dev` needed a prior build, `OPTIONS` returned `405` while being advertised, and expected `400`s logged stack traces. All three fixed and re-verified by the parent. |
 | T4 | `96faf8f` | `docs/engineering-standards.md` with ID-tagged rules and enforcement column. |
 | T5, T6, T7 | `44b55ed`, `c7e2de5` | `npm run lint`, `format:check`, `typecheck`, `test:coverage` (87% statements / 92% branches / 100% functions) and `build` all green. Pre-commit hook observed blocking a staged lint error. |
-| T8, T9 | pending | 96 tests total (67 API, 29 web). Web coverage 94.9% statements / 96.4% branches. Parent smoke test: `GET localhost:5173/` returned 200 and `GET localhost:5173/api/health` returned the API payload through the Vite proxy. |
+| T8, T9 | `0ab8725`, `fee31f0` | 96 tests total (67 API, 29 web). Web coverage 94.9% statements / 96.4% branches. Parent smoke test: `GET localhost:5173/` returned 200 and `GET localhost:5173/api/health` returned the API payload through the Vite proxy. |
+| T10 | `888d7a5` | 124 tests total (67 API, 57 web). Parent verified: no casts on response bodies, `points` never appears in the submission payload, `role="alert"` on both error messages, `disabled={submitting}` on the submit control. |
+| T11 | pending | `README.md` and `docs/architecture.md`. Deployment and teardown sections state explicitly that infrastructure is not implemented, per DOC-3. |
 
 ## Scope violations caught in review
 
