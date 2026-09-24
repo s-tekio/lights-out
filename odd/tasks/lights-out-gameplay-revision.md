@@ -141,6 +141,63 @@ label format is the behaviour under test, while the sizes are tuning values that
 that pins a tuning value fails for the wrong reason and invites a copy-paste fix that leaves the next
 retune just as fragile.
 
+## Revision 3 — server-side leaderboard sorting
+
+Requested by the user: sort the leaderboard by player name, time and points, with the sort going to
+the backend so the DynamoDB adapter can honour it later, and remove the position column.
+
+The sort had to be a query rather than a display concern. The API returns the top N by points, so
+reordering those rows in the browser produces "the fastest among the best by points" rather than the
+the fastest overall, and the client cannot fix that because the missing rows never arrived. A test
+now asserts the client renders the server's order and does not sort locally.
+
+| Task | Result |
+| --- | --- |
+| Contract | `sort` (`points`, `elapsedMs`, `playerName`) and `order` (`asc`, `desc`) added, with a per-column default direction. Response echoes both. Defaults reproduce the previous behaviour exactly. |
+| Determinism | Every ordering appends `createdAt` then `id`, so equal values are never returned in arbitrary order. |
+| Canonical rank | Unchanged: points descending, then `elapsedMs`, then `createdAt`. The two orderings now differ, so the contract says so explicitly. |
+| Position column | Removed. It rendered `index + 1`, the position in the current view, which silently disagreed with the canonical rank whenever a filter or sort applied. |
+| Column | Removed |
+
+### Finding — locale-dependent ordering would have broken the DynamoDB adapter
+
+The first implementation sorted strings with `localeCompare`. That is locale-dependent: the same data
+could order differently on a workstation than in a Lambda runtime, and the DynamoDB adapter cannot
+reproduce locale collation without a precomputed collation key. The contract promises the adapters
+agree, so this would have been a silent divergence.
+
+Replaced with an explicit code-unit comparison in `apps/api/src/adapters/in-memory-score-repository.ts`,
+and stated in the contract. The visible consequence, now pinned by tests, is that inside a
+case-insensitive group `Ana` sorts before `ana`, because `A` (U+0041) precedes `a` (U+0061). Two
+existing tests flipped: they had been pinning an incidental consequence of locale collation rather
+than an intended rule, and their names still describe the property that does hold.
+
+### Known fragility
+
+API branch coverage is exactly at its 90% threshold after this change. Any unrelated addition of a
+branch will fail CI. Not padded with tests, because coverage padding is worse than the fragility.
+
+## Proposed next feature — server-issued puzzle state
+
+Recorded because it closes two open problems at once.
+
+The scoring formula uses `par = boardSize × 2`, a heuristic that has nothing to do with the board's
+real minimum. Measured over generated boards:
+
+| Level | `par` | True minimum | Boards where PERFECT play still takes the move penalty |
+| --- | --- | --- | --- |
+| Easy 3×3 | 6 | 3–5 | **0%** — so the penalty never applies and moves do not affect the score at all |
+| Normal 5×5 | 10 | 3–11 | 17% |
+| Hard 7×7 | 14 | 10–26 | 79% |
+
+On Easy the move counter is decorative: solving in 3 presses and in 5 award identical points, so only
+time competes. On Hard, optimal play is punished on most boards.
+
+The root cause is that the server does not know the board, so it cannot know that board's minimum. If
+the **server issues the puzzle**, it knows the board, can score efficiency as `trueMinimum / moves`,
+and can validate the submission — which also closes the anti-cheat hole that has been open since the
+first version. One change, two problems.
+
 ## Known test limitation
 
 The help dialog currently has exactly one focusable element, its Close button. The Tab and Shift+Tab
