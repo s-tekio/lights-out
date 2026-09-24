@@ -19,7 +19,7 @@ class InMemoryRepository implements ScoreRepository {
     return Promise.resolve(score);
   }
 
-  listTop({ limit, boardSize }: ListTopOptions): Promise<readonly Score[]> {
+  listTop({ limit, boardSize, sort, order }: ListTopOptions): Promise<readonly Score[]> {
     if (this.shouldFail) {
       return Promise.reject(new Error('Injected repository failure.'));
     }
@@ -30,9 +30,30 @@ class InMemoryRepository implements ScoreRepository {
         : this.scores.filter((score) => score.boardSize === boardSize);
 
     const ordered = [...filtered].sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      if (a.elapsedMs !== b.elapsedMs) return a.elapsedMs - b.elapsedMs;
-      return a.createdAt.localeCompare(b.createdAt);
+      let primary = 0;
+      if (sort === 'points') {
+        primary = a.points - b.points;
+      } else if (sort === 'elapsedMs') {
+        primary = a.elapsedMs - b.elapsedMs;
+      } else {
+        const normalizedA = a.playerName.toLowerCase();
+        const normalizedB = b.playerName.toLowerCase();
+        primary =
+          normalizedA === normalizedB
+            ? a.playerName.localeCompare(b.playerName)
+            : normalizedA.localeCompare(normalizedB);
+      }
+
+      if (primary !== 0) {
+        return order === 'asc' ? primary : -primary;
+      }
+
+      const createdAtComparison = a.createdAt.localeCompare(b.createdAt);
+      if (createdAtComparison !== 0) {
+        return createdAtComparison;
+      }
+
+      return a.id.localeCompare(b.id);
     });
 
     return Promise.resolve(ordered.slice(0, limit));
@@ -45,6 +66,8 @@ class InMemoryRepository implements ScoreRepository {
     const all = await this.listTop({
       limit: Number.MAX_SAFE_INTEGER,
       boardSize: null,
+      sort: 'points',
+      order: 'desc',
     });
     const index = all.findIndex((item) => item.id === score.id);
     return index === -1 ? all.length + 1 : index + 1;
@@ -222,10 +245,14 @@ describe('route', () => {
       items: Score[];
       limit: number;
       boardSize: number | null;
+      sort: string;
+      order: string;
     };
     expect(body.items.length).toBe(1);
     expect(body.limit).toBe(10);
     expect(body.boardSize).toBeNull();
+    expect(body.sort).toBe('points');
+    expect(body.order).toBe('desc');
   });
 
   it('lists scores with boardSize filter', async () => {
@@ -259,10 +286,41 @@ describe('route', () => {
       items: Score[];
       limit: number;
       boardSize: number | null;
+      sort: string;
+      order: string;
     };
     expect(body.items.length).toBe(1);
     expect(body.items[0]?.boardSize).toBe(5);
     expect(body.boardSize).toBe(5);
+    expect(body.sort).toBe('points');
+    expect(body.order).toBe('desc');
+  });
+
+  it('echoes explicit sort and order parameters', async () => {
+    const repo = new InMemoryRepository();
+    await repo.save({
+      id: '1',
+      playerName: 'Tekio',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 42_310,
+      points: 2_290,
+      createdAt: '2026-09-24T12:00:00.000Z',
+    });
+
+    const response = await route(
+      { method: 'GET', path: '/api/scores', query: { sort: 'playerName', order: 'asc' }, body: '' },
+      { repo },
+    );
+
+    expect(response.statusCode).toBe(200);
+    const body = parseJson(response) as {
+      items: Score[];
+      sort: string;
+      order: string;
+    };
+    expect(body.sort).toBe('playerName');
+    expect(body.order).toBe('asc');
   });
 
   it('ignores unknown query values', async () => {
@@ -287,5 +345,41 @@ describe('route', () => {
     expect(response.statusCode).toBe(400);
     const body = parseJson(response) as { error: { code: string } };
     expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 for an unknown sort value', async () => {
+    const repo = new InMemoryRepository();
+    const response = await route(
+      { method: 'GET', path: '/api/scores', query: { sort: 'bogus' }, body: '' },
+      { repo },
+    );
+
+    expect(response.statusCode).toBe(400);
+    const body = parseJson(response) as {
+      error: { code: string; details: Array<{ field: string; message: string }> };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.details).toContainEqual({
+      field: 'sort',
+      message: "must be one of 'points', 'elapsedMs', 'playerName'",
+    });
+  });
+
+  it('returns 400 for an unknown order value', async () => {
+    const repo = new InMemoryRepository();
+    const response = await route(
+      { method: 'GET', path: '/api/scores', query: { order: 'sideways' }, body: '' },
+      { repo },
+    );
+
+    expect(response.statusCode).toBe(400);
+    const body = parseJson(response) as {
+      error: { code: string; details: Array<{ field: string; message: string }> };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.details).toContainEqual({
+      field: 'order',
+      message: "must be one of 'asc', 'desc'",
+    });
   });
 });

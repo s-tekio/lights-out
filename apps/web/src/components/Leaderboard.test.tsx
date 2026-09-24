@@ -24,6 +24,14 @@ const validScore: Score = {
   createdAt: '2026-09-24T12:00:00.000Z',
 };
 
+const defaultResponse: LeaderboardResponse = {
+  items: [],
+  limit: 10,
+  boardSize: null,
+  sort: 'points',
+  order: 'desc',
+};
+
 describe('Leaderboard', () => {
   beforeEach(() => {
     mockedFetchLeaderboard.mockReset();
@@ -45,29 +53,25 @@ describe('Leaderboard', () => {
     render(<Leaderboard />);
     await waitFor(() => expect(screen.getByText(/Loading leaderboard/i)).toBeInTheDocument());
 
-    resolve({ items: [], limit: 10, boardSize: null });
+    resolve(defaultResponse);
     await waitFor(() => expect(screen.queryByText(/Loading leaderboard/i)).not.toBeInTheDocument());
   });
 
-  it('renders populated scores with rank positions', async () => {
+  it('renders populated scores without a position column', async () => {
     mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
       items: [validScore],
-      limit: 10,
       boardSize: 5,
     });
     render(<Leaderboard />);
 
     await waitFor(() => expect(screen.getByText('Tekio')).toBeInTheDocument());
     expect(screen.getByText('2290')).toBeInTheDocument();
-    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: /Rank/i })).not.toBeInTheDocument();
   });
 
   it('renders an empty state when no scores exist', async () => {
-    mockedFetchLeaderboard.mockResolvedValue({
-      items: [],
-      limit: 10,
-      boardSize: null,
-    });
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
     render(<Leaderboard />);
 
     await waitFor(() => expect(screen.getByText(/No scores yet/i)).toBeInTheDocument());
@@ -81,11 +85,7 @@ describe('Leaderboard', () => {
   });
 
   it('offers All levels plus one option per difficulty', async () => {
-    mockedFetchLeaderboard.mockResolvedValue({
-      items: [],
-      limit: 10,
-      boardSize: null,
-    });
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
     render(<Leaderboard />);
 
     await waitFor(() => expect(screen.getByLabelText(/Level/i)).toBeInTheDocument());
@@ -109,17 +109,15 @@ describe('Leaderboard', () => {
   });
 
   it('sends the difficulty board size when a level is selected', async () => {
-    mockedFetchLeaderboard.mockResolvedValue({
-      items: [],
-      limit: 10,
-      boardSize: null,
-    });
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
     render(<Leaderboard />);
 
     await waitFor(() =>
       expect(fetchLeaderboard).toHaveBeenLastCalledWith({
         limit: 10,
         boardSize: null,
+        sort: 'points',
+        order: 'desc',
       }),
     );
 
@@ -128,16 +126,14 @@ describe('Leaderboard', () => {
       expect(fetchLeaderboard).toHaveBeenLastCalledWith({
         limit: 10,
         boardSize: findDifficultyById('easy').boardSize,
+        sort: 'points',
+        order: 'desc',
       }),
     );
   });
 
   it('sends no board size when All levels is selected', async () => {
-    mockedFetchLeaderboard.mockResolvedValue({
-      items: [],
-      limit: 10,
-      boardSize: null,
-    });
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
     render(<Leaderboard />);
 
     fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: 'hard' } });
@@ -145,12 +141,19 @@ describe('Leaderboard', () => {
       expect(fetchLeaderboard).toHaveBeenLastCalledWith({
         limit: 10,
         boardSize: findDifficultyById('hard').boardSize,
+        sort: 'points',
+        order: 'desc',
       }),
     );
 
     fireEvent.change(screen.getByLabelText(/Level/i), { target: { value: '' } });
     await waitFor(() =>
-      expect(fetchLeaderboard).toHaveBeenLastCalledWith({ limit: 10, boardSize: null }),
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: null,
+        sort: 'points',
+        order: 'desc',
+      }),
     );
   });
 
@@ -158,8 +161,8 @@ describe('Leaderboard', () => {
     const normal = findDifficultyById('normal');
 
     mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
       items: [{ ...validScore, boardSize: normal.boardSize }],
-      limit: 10,
       boardSize: normal.boardSize,
     });
     render(<Leaderboard />);
@@ -170,8 +173,8 @@ describe('Leaderboard', () => {
 
   it('renders the raw size for an unknown board size', async () => {
     mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
       items: [{ ...validScore, boardSize: 4 }],
-      limit: 10,
       boardSize: null,
     });
     render(<Leaderboard />);
@@ -181,15 +184,133 @@ describe('Leaderboard', () => {
   });
 
   it('refreshes when the refresh button is clicked', async () => {
-    mockedFetchLeaderboard.mockResolvedValue({
-      items: [],
-      limit: 10,
-      boardSize: null,
-    });
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
     render(<Leaderboard />);
 
     await waitFor(() => expect(fetchLeaderboard).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: /Refresh/i }));
     await waitFor(() => expect(fetchLeaderboard).toHaveBeenCalledTimes(2));
+  });
+
+  it('sortable headers have aria-sort and buttons', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
+      items: [validScore],
+    });
+    render(<Leaderboard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('columnheader', { name: /Player/i })).toBeInTheDocument(),
+    );
+
+    const playerHeader = screen.getByRole('columnheader', { name: /Player/i });
+    expect(playerHeader).toHaveAttribute('aria-sort', 'none');
+    expect(playerHeader.querySelector('button')).toBeInTheDocument();
+
+    const timeHeader = screen.getByRole('columnheader', { name: /Time/i });
+    expect(timeHeader).toHaveAttribute('aria-sort', 'none');
+
+    const pointsHeader = screen.getByRole('columnheader', { name: /Points/i });
+    expect(pointsHeader).toHaveAttribute('aria-sort', 'descending');
+
+    const movesHeader = screen.getByRole('columnheader', { name: /Moves/i });
+    expect(movesHeader).not.toHaveAttribute('aria-sort');
+
+    const levelHeader = screen.getByRole('columnheader', { name: /Level/i });
+    expect(levelHeader).not.toHaveAttribute('aria-sort');
+  });
+
+  it('sends the selected sort to the server when a sortable header is clicked', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
+      items: [validScore],
+    });
+    render(<Leaderboard />);
+
+    await waitFor(() => expect(fetchLeaderboard).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole('button', { name: /Player/i }));
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: null,
+        sort: 'playerName',
+        order: 'asc',
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Time/i }));
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: null,
+        sort: 'elapsedMs',
+        order: 'asc',
+      }),
+    );
+  });
+
+  it('toggles direction when the active sort header is clicked again', async () => {
+    mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
+      items: [validScore],
+    });
+    render(<Leaderboard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Points/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Points/i }));
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: null,
+        sort: 'points',
+        order: 'asc',
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Points/i }));
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: null,
+        sort: 'points',
+        order: 'desc',
+      }),
+    );
+  });
+
+  it('renders rows in the order returned by the server, not a locally sorted order', async () => {
+    const serverOrder: Score[] = [
+      { ...validScore, id: 'slow-high', playerName: 'Zoe', elapsedMs: 90_000, points: 3000 },
+      { ...validScore, id: 'fast-low', playerName: 'Ana', elapsedMs: 10_000, points: 1000 },
+    ];
+
+    mockedFetchLeaderboard.mockResolvedValue({
+      ...defaultResponse,
+      items: serverOrder,
+      sort: 'elapsedMs',
+      order: 'asc',
+    });
+
+    render(<Leaderboard />);
+
+    await waitFor(() => expect(screen.getByText('Zoe')).toBeInTheDocument());
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[0]).toHaveTextContent('Zoe');
+    expect(rows[1]).toHaveTextContent('Ana');
+
+    fireEvent.click(screen.getByRole('button', { name: /Time/i }));
+    await waitFor(() =>
+      expect(fetchLeaderboard).toHaveBeenLastCalledWith({
+        limit: 10,
+        boardSize: null,
+        sort: 'elapsedMs',
+        order: 'asc',
+      }),
+    );
   });
 });

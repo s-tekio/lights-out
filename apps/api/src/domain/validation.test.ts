@@ -353,7 +353,7 @@ describe('parseScoreQuery', () => {
     const result = parseScoreQuery({});
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toEqual({ limit: 10, boardSize: null });
+    expect(result.value).toEqual({ limit: 10, boardSize: null, sort: 'points', order: 'desc' });
   });
 
   it('parses limit from a string', () => {
@@ -428,6 +428,95 @@ describe('parseScoreQuery', () => {
     const result = parseScoreQuery({ foo: 'bar', limit: '10' });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toEqual({ limit: 10, boardSize: null });
+    expect(result.value).toEqual({ limit: 10, boardSize: null, sort: 'points', order: 'desc' });
+  });
+
+  it('uses default sort and order when none are provided', () => {
+    const result = parseScoreQuery({});
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ limit: 10, boardSize: null, sort: 'points', order: 'desc' });
+  });
+
+  it('parses sort and order from strings', () => {
+    const result = parseScoreQuery({ sort: 'elapsedMs', order: 'desc' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sort).toBe('elapsedMs');
+    expect(result.value.order).toBe('desc');
+  });
+
+  it('defaults order based on the sort column', () => {
+    const elapsedMsResult = parseScoreQuery({ sort: 'elapsedMs' });
+    expect(elapsedMsResult.ok).toBe(true);
+    if (!elapsedMsResult.ok) return;
+    expect(elapsedMsResult.value).toMatchObject({
+      sort: 'elapsedMs',
+      order: 'asc',
+    });
+
+    const playerNameResult = parseScoreQuery({ sort: 'playerName' });
+    expect(playerNameResult.ok).toBe(true);
+    if (!playerNameResult.ok) return;
+    expect(playerNameResult.value).toMatchObject({
+      sort: 'playerName',
+      order: 'asc',
+    });
+  });
+
+  it('rejects an unknown sort value', () => {
+    const result = parseScoreQuery({ sort: 'bogus' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContainEqual({
+      field: 'sort',
+      message: "must be one of 'points', 'elapsedMs', 'playerName'",
+    });
+  });
+
+  it('rejects an unknown order value', () => {
+    const result = parseScoreQuery({ order: 'sideways' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContainEqual({
+      field: 'order',
+      message: "must be one of 'asc', 'desc'",
+    });
+  });
+
+  it('rejects a non-string sort value', () => {
+    const result = parseScoreQuery({ sort: 123 });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContainEqual({
+      field: 'sort',
+      message: "must be one of 'points', 'elapsedMs', 'playerName'",
+    });
+  });
+
+  it('rejects a non-string order value', () => {
+    const result = parseScoreQuery({ order: true });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toContainEqual({
+      field: 'order',
+      message: "must be one of 'asc', 'desc'",
+    });
+  });
+
+  it('treats empty sort and order as omitted', () => {
+    const result = parseScoreQuery({ sort: '', order: '' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ limit: 10, boardSize: null, sort: 'points', order: 'desc' });
+  });
+
+  it('reports both invalid sort and invalid order together', () => {
+    const result = parseScoreQuery({ sort: 'bogus', order: 'sideways' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const fields = result.errors.map((error) => error.field);
+    expect(fields).toContain('sort');
+    expect(fields).toContain('order');
   });
 });

@@ -1,8 +1,11 @@
 import type { Score } from '../domain/score.js';
+import type { SortColumn, SortOrder } from '../domain/validation.js';
 
 export type ListTopOptions = {
   limit: number;
   boardSize: number | null;
+  sort: SortColumn;
+  order: SortOrder;
 };
 
 /**

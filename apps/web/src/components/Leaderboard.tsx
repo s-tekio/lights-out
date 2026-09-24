@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchLeaderboard, getScoresErrorMessage, type Score } from '../api/scores';
+import {
+  fetchLeaderboard,
+  getScoresErrorMessage,
+  type Score,
+  type SortColumn,
+  type SortOrder,
+} from '../api/scores';
 import {
   DIFFICULTIES,
   formatBoardSizeLabel,
@@ -20,6 +26,12 @@ type LeaderboardState =
 
 const DEFAULT_LIMIT = 10;
 
+const SORT_DEFAULTS: Record<SortColumn, SortOrder> = {
+  points: 'desc',
+  elapsedMs: 'asc',
+  playerName: 'asc',
+};
+
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -38,9 +50,30 @@ function resolveBoardSizeFilter(difficultyId: DifficultyId | null): number | nul
   return difficulty?.boardSize ?? null;
 }
 
+type SortState = {
+  readonly sort: SortColumn;
+  readonly order: SortOrder;
+};
+
+function nextSortState(current: SortState, column: SortColumn): SortState {
+  if (current.sort === column) {
+    return { sort: column, order: current.order === 'asc' ? 'desc' : 'asc' };
+  }
+
+  return { sort: column, order: SORT_DEFAULTS[column] };
+}
+
+function ariaSortValue(order: SortOrder): 'ascending' | 'descending' {
+  return order === 'asc' ? 'ascending' : 'descending';
+}
+
 export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
   const [state, setState] = useState<LeaderboardState>({ kind: 'loading' });
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyId | null>(null);
+  const [sortState, setSortState] = useState<SortState>({
+    sort: 'points',
+    order: SORT_DEFAULTS.points,
+  });
 
   const boardSizeFilter = resolveBoardSizeFilter(difficultyFilter);
 
@@ -51,6 +84,8 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
       const response = await fetchLeaderboard({
         limit: DEFAULT_LIMIT,
         boardSize: boardSizeFilter,
+        sort: sortState.sort,
+        order: sortState.order,
       });
 
       if (response.items.length === 0) {
@@ -61,7 +96,7 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
     } catch (error) {
       setState({ kind: 'error', message: getScoresErrorMessage(error) });
     }
-  }, [boardSizeFilter]);
+  }, [boardSizeFilter, sortState]);
 
   useEffect(() => {
     void load();
@@ -70,6 +105,37 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
   const handleFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
     setDifficultyFilter(isDifficultyId(value) ? value : null);
+  };
+
+  const handleSort = (column: SortColumn) => {
+    setSortState((current) => nextSortState(current, column));
+  };
+
+  const sortableHeader = (column: SortColumn, label: string) => {
+    const isActive = sortState.sort === column;
+    const order = sortState.order;
+    const accessibleLabel = isActive
+      ? `${label}, sorted ${order === 'asc' ? 'ascending' : 'descending'}`
+      : `${label}, sortable`;
+
+    return (
+      <th
+        scope="col"
+        aria-sort={isActive ? ariaSortValue(order) : 'none'}
+        className={isActive ? 'leaderboard__th--sorted' : undefined}
+      >
+        <button
+          type="button"
+          aria-label={accessibleLabel}
+          onClick={() => {
+            handleSort(column);
+          }}
+        >
+          {label}
+          {isActive && <span aria-hidden="true"> {order === 'asc' ? '▲' : '▼'}</span>}
+        </button>
+      </th>
+    );
   };
 
   return (
@@ -120,18 +186,16 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
         <table className="leaderboard__table">
           <thead>
             <tr>
-              <th scope="col">Rank</th>
-              <th scope="col">Player</th>
+              {sortableHeader('playerName', 'Player')}
               <th scope="col">Level</th>
               <th scope="col">Moves</th>
-              <th scope="col">Time</th>
-              <th scope="col">Points</th>
+              {sortableHeader('elapsedMs', 'Time')}
+              {sortableHeader('points', 'Points')}
             </tr>
           </thead>
           <tbody>
-            {state.items.map((score, index) => (
+            {state.items.map((score) => (
               <tr key={score.id}>
-                <td>{index + 1}</td>
                 <td>{score.playerName}</td>
                 <td>{formatBoardSizeLabel(score.boardSize)}</td>
                 <td>{score.moves}</td>

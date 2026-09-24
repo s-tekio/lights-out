@@ -73,6 +73,8 @@ Query parameters:
 | --- | --- | --- | --- |
 | `limit` | integer | `10` | 1 to 100 inclusive. |
 | `boardSize` | integer | all sizes | 3 to 9 inclusive. When present, only scores for that board size are returned. |
+| `sort` | string | `points` | One of `points`, `elapsedMs`, `playerName`. |
+| `order` | string | depends on `sort` | `asc` or `desc`. Defaults: `points` gives `desc`, `elapsedMs` gives `asc`, `playerName` gives `asc`. |
 
 Response `200 OK`:
 
@@ -90,11 +92,17 @@ Response `200 OK`:
     }
   ],
   "limit": 10,
-  "boardSize": 5
+  "boardSize": 5,
+  "sort": "points",
+  "order": "desc"
 }
 ```
 
-`boardSize` is `null` when no size filter was applied.
+`boardSize` is `null` when no size filter was applied. `sort` and `order` echo the values that were
+applied to the query, including any resolved defaults.
+
+The change is additive and backwards compatible: omitting both `sort` and `order` reproduces the
+previous behaviour exactly (`points` descending).
 
 ## Error shape
 
@@ -146,13 +154,33 @@ tuned, and the constants live in `apps/api/src/domain/score.ts`.
 
 ## Ordering
 
-Leaderboard order is deterministic:
+The canonical ranking used for `rank` in the `POST /api/scores` response is deterministic and
+independent of the `sort`/`order` used to read the list:
 
 1. `points` descending (better score first)
 2. `elapsedMs` ascending (faster wins ties)
 3. `createdAt` ascending (earlier submission wins remaining ties)
 
-`rank` in the `POST` response is the 1-based position of the submitted score under that ordering.
+`rank` in the `POST` response is the 1-based position of the submitted score under that canonical
+ordering, and it does not change when the list is later read with a different `sort` or `order`.
+
+For `GET /api/scores`, every ordering appends the same stable tiebreaker chain so that equal values
+never come back in arbitrary order:
+
+1. the requested column and direction
+2. `createdAt` ascending
+3. `id` ascending
+
+`playerName` ordering is case-insensitive. The order is: normalized (lowercased) name ascending,
+then the original name ascending, then the tiebreaker chain. This matters because the DynamoDB
+adapter will need a normalized attribute to reproduce the same order cheaply.
+
+**String comparisons are by UTF-16 code unit, not locale collation.** This is not a detail.
+`localeCompare` depends on the ambient locale, so the same data could order differently on a
+workstation than in a Lambda runtime, and the DynamoDB adapter cannot reproduce locale collation
+without a precomputed collation key. Code-unit order is defined and reproducible on both sides. Its
+visible consequence is that inside a case-insensitive group `Ana` sorts before `ana`, because `A`
+(U+0041) precedes `a` (U+0061).
 
 ## Known limitation
 

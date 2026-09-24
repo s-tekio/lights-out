@@ -17,6 +17,18 @@ const DEFAULT_LIMIT = 10;
 const LIMIT_MIN = 1;
 const LIMIT_MAX = 100;
 
+const SORTABLE_COLUMNS = ['points', 'elapsedMs', 'playerName'] as const;
+const SORT_ORDERS = ['asc', 'desc'] as const;
+
+export type SortColumn = (typeof SORTABLE_COLUMNS)[number];
+export type SortOrder = (typeof SORT_ORDERS)[number];
+
+const DEFAULT_SORT_ORDER: Record<SortColumn, SortOrder> = {
+  points: 'desc',
+  elapsedMs: 'asc',
+  playerName: 'asc',
+};
+
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; errors: FieldError[] };
 
 function isInteger(value: unknown): value is number {
@@ -108,6 +120,8 @@ export function parseScoreSubmission(raw: unknown): ValidationResult<ScoreInput>
 export type ScoreQuery = {
   limit: number;
   boardSize: number | null;
+  sort: SortColumn;
+  order: SortOrder;
 };
 
 function parseQueryInt(
@@ -148,6 +162,52 @@ function parseQueryInt(
   return undefined;
 }
 
+function parseSort(raw: unknown, errors: FieldError[]): SortColumn | undefined {
+  if (raw === undefined || raw === '') {
+    return undefined;
+  }
+
+  if (typeof raw !== 'string') {
+    addError(errors, 'sort', "must be one of 'points', 'elapsedMs', 'playerName'");
+    return undefined;
+  }
+
+  const normalized = raw.trim();
+  if (normalized === '') {
+    return undefined;
+  }
+
+  if ((SORTABLE_COLUMNS as readonly string[]).includes(normalized)) {
+    return normalized as SortColumn;
+  }
+
+  addError(errors, 'sort', "must be one of 'points', 'elapsedMs', 'playerName'");
+  return undefined;
+}
+
+function parseOrder(raw: unknown, errors: FieldError[]): SortOrder | undefined {
+  if (raw === undefined || raw === '') {
+    return undefined;
+  }
+
+  if (typeof raw !== 'string') {
+    addError(errors, 'order', "must be one of 'asc', 'desc'");
+    return undefined;
+  }
+
+  const normalized = raw.trim();
+  if (normalized === '') {
+    return undefined;
+  }
+
+  if ((SORT_ORDERS as readonly string[]).includes(normalized)) {
+    return normalized as SortOrder;
+  }
+
+  addError(errors, 'order', "must be one of 'asc', 'desc'");
+  return undefined;
+}
+
 export function parseScoreQuery(raw: unknown): ValidationResult<ScoreQuery> {
   const query =
     raw !== null && typeof raw === 'object' && !Array.isArray(raw)
@@ -164,9 +224,12 @@ export function parseScoreQuery(raw: unknown): ValidationResult<ScoreQuery> {
       ? null
       : (parseQueryInt(boardSizeRaw, 'boardSize', BOARD_SIZE_MIN, BOARD_SIZE_MAX, errors) ?? null);
 
+  const sort = parseSort(query.sort, errors) ?? 'points';
+  const order = parseOrder(query.order, errors) ?? DEFAULT_SORT_ORDER[sort];
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
 
-  return { ok: true, value: { limit, boardSize } };
+  return { ok: true, value: { limit, boardSize, sort, order } };
 }

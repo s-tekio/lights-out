@@ -54,6 +54,14 @@ const validSubmission = {
   elapsedMs: 42310,
 };
 
+const validLeaderboardResponse = {
+  items: [validScore],
+  limit: 10,
+  boardSize: 5,
+  sort: 'points',
+  order: 'desc',
+} as const;
+
 describe('submitScore', () => {
   it('parses a successful response into a Score with rank', async () => {
     const { fetch, calls } = createFetchStub(jsonResponse({ score: validScore, rank: 3 }, 201));
@@ -121,14 +129,14 @@ describe('submitScore', () => {
 
 describe('fetchLeaderboard', () => {
   it('parses a successful response into a list of scores', async () => {
-    const { fetch, calls } = createFetchStub(
-      jsonResponse({ items: [validScore], limit: 10, boardSize: 5 }),
-    );
+    const { fetch, calls } = createFetchStub(jsonResponse(validLeaderboardResponse));
     const result = await fetchLeaderboard({ limit: 10, boardSize: 5 }, fetch);
 
     expect(result.items).toEqual([validScore]);
     expect(result.limit).toBe(10);
     expect(result.boardSize).toBe(5);
+    expect(result.sort).toBe('points');
+    expect(result.order).toBe('desc');
 
     const firstCall = calls[0];
     expect(firstCall).toBeDefined();
@@ -139,7 +147,7 @@ describe('fetchLeaderboard', () => {
 
   it('omits the boardSize parameter when filtering by all sizes', async () => {
     const { fetch, calls } = createFetchStub(
-      jsonResponse({ items: [], limit: 10, boardSize: null }),
+      jsonResponse({ items: [], limit: 10, boardSize: null, sort: 'points', order: 'desc' }),
     );
     await fetchLeaderboard({}, fetch);
 
@@ -150,9 +158,58 @@ describe('fetchLeaderboard', () => {
     expect(firstCall.url).toBe('/api/scores');
   });
 
+  it('includes sort and order query parameters when provided', async () => {
+    const { fetch, calls } = createFetchStub(
+      jsonResponse({
+        items: [validScore],
+        limit: 10,
+        boardSize: null,
+        sort: 'playerName',
+        order: 'asc',
+      }),
+    );
+    await fetchLeaderboard({ sort: 'playerName', order: 'asc' }, fetch);
+
+    const firstCall = calls[0];
+    expect(firstCall).toBeDefined();
+    if (firstCall === undefined) return;
+
+    expect(firstCall.url).toBe('/api/scores?sort=playerName&order=asc');
+  });
+
+  it('rejects a leaderboard body missing sort or order', async () => {
+    const { fetch } = createFetchStub(
+      jsonResponse({ items: [validScore], limit: 10, boardSize: null }),
+    );
+
+    const error = await fetchLeaderboard({}, fetch).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(MalformedResponseError);
+  });
+
+  it('rejects an invalid sort value in the response', async () => {
+    const { fetch } = createFetchStub(
+      jsonResponse({
+        items: [validScore],
+        limit: 10,
+        boardSize: null,
+        sort: 'bogus',
+        order: 'desc',
+      }),
+    );
+
+    const error = await fetchLeaderboard({}, fetch).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(MalformedResponseError);
+  });
+
   it('rejects a malformed leaderboard body', async () => {
     const { fetch } = createFetchStub(
-      jsonResponse({ items: [{ invalid: true }], limit: 10, boardSize: null }),
+      jsonResponse({
+        items: [{ invalid: true }],
+        limit: 10,
+        boardSize: null,
+        sort: 'points',
+        order: 'desc',
+      }),
     );
 
     const error = await fetchLeaderboard({}, fetch).catch((caught: unknown) => caught);

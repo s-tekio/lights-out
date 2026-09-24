@@ -40,6 +40,8 @@ export type ListTopScoresResult = {
   items: readonly Score[];
   limit: number;
   boardSize: number | null;
+  sort: ScoreQuery['sort'];
+  order: ScoreQuery['order'];
 };
 
 export async function listTopScores(
@@ -57,5 +59,7 @@ export async function listTopScores(
     items,
     limit: query.limit,
     boardSize: query.boardSize,
+    sort: query.sort,
+    order: query.order,
   };
 }

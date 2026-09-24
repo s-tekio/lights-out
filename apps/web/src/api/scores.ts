@@ -23,15 +23,22 @@ export type SubmitScoreResponse = {
   readonly rank: number;
 };
 
+export type SortColumn = 'points' | 'elapsedMs' | 'playerName';
+export type SortOrder = 'asc' | 'desc';
+
 export type LeaderboardQuery = {
   readonly limit?: number;
   readonly boardSize?: number | null;
+  readonly sort?: SortColumn;
+  readonly order?: SortOrder;
 };
 
 export type LeaderboardResponse = {
   readonly items: readonly Score[];
   readonly limit: number;
   readonly boardSize: number | null;
+  readonly sort: SortColumn;
+  readonly order: SortOrder;
 };
 
 type FieldError = {
@@ -144,6 +151,17 @@ function isSubmitScoreResponse(value: unknown): value is SubmitScoreResponse {
   return isObject(value) && isScore(value.score) && isInteger(value.rank);
 }
 
+const SORT_COLUMNS: readonly string[] = ['points', 'elapsedMs', 'playerName'];
+const SORT_ORDERS: readonly string[] = ['asc', 'desc'];
+
+function isSortColumn(value: unknown): value is SortColumn {
+  return isString(value) && SORT_COLUMNS.includes(value);
+}
+
+function isSortOrder(value: unknown): value is SortOrder {
+  return isString(value) && SORT_ORDERS.includes(value);
+}
+
 function isLeaderboardResponse(value: unknown): value is LeaderboardResponse {
   if (!isObject(value)) {
     return false;
@@ -155,7 +173,9 @@ function isLeaderboardResponse(value: unknown): value is LeaderboardResponse {
     Array.isArray(items) &&
     items.every(isScore) &&
     isInteger(value.limit) &&
-    (boardSize === null || isInteger(boardSize))
+    (boardSize === null || isInteger(boardSize)) &&
+    isSortColumn(value.sort) &&
+    isSortOrder(value.order)
   );
 }
 
@@ -263,6 +283,14 @@ export async function fetchLeaderboard(
 
   if (query.boardSize !== undefined && query.boardSize !== null) {
     params.set('boardSize', String(query.boardSize));
+  }
+
+  if (query.sort !== undefined) {
+    params.set('sort', query.sort);
+  }
+
+  if (query.order !== undefined) {
+    params.set('order', query.order);
   }
 
   const url = params.toString().length > 0 ? `/api/scores?${params.toString()}` : '/api/scores';

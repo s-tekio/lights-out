@@ -97,27 +97,53 @@ or an index to be efficient. That is recorded in the data model below.
 **Not implemented yet.** Recorded here so the adapter is written against a deliberate design
 rather than discovered by trial.
 
-The contract requires an exact ordering: `points` descending, then `elapsedMs` ascending, then
-`createdAt` ascending. DynamoDB sorts sort keys ascending, so the ordering is encoded into the key
-with inverted components.
+The canonical ranking requires an exact ordering: `points` descending, then `elapsedMs` ascending,
+then `createdAt` ascending. DynamoDB sorts sort keys ascending, so the ordering is encoded into the
+key with inverted components.
 
 | Concern | Design |
 | --- | --- |
 | Table | `scores`, on-demand billing, point-in-time recovery enabled, deletion protection on |
 | Partition key | `id` (UUID v4), for the write path |
-| Attributes | `playerName`, `boardSize`, `moves`, `elapsedMs`, `points`, `createdAt` |
+| Attributes | `playerName`, `boardSize`, `moves`, `elapsedMs`, `points`, `createdAt`, `playerNameLower` |
 | GSI `leaderboard-by-board-size` | PK `boardSize`, SK `rankKey` |
 | GSI `leaderboard-all-sizes` | PK `allSizes` (constant), SK `rankKey` |
-| `rankKey` | `pad(999999 - points, 6)` + `'#'` + `pad(elapsedMs, 9)` + `'#'` + `id` |
+| `rankKey` | `pad(999999 - points, 6)` + `'#'` + `pad(elapsedMs, 9)` + `'#'` + `createdAt` + `'#'` + `id` |
 
 Why `rankKey` works: subtracting `points` from a fixed maximum inverts the comparison, so ascending
-`rankKey` order is descending `points`. The `elapsedMs` component then breaks ties the way the
-contract requires, and the trailing `id` makes the key unique so two identical results cannot
-collide.
+`rankKey` order is descending `points`. The `elapsedMs` and `createdAt` components then break ties
+the way the contract requires, and the trailing `id` makes the key unique so two identical results
+cannot collide.
 
 Rank calculation becomes a single `Query` with `Select: COUNT` over `rankKey < :thisRankKey` in the
 same partition, plus one. No table scan, no client-side sorting, and the cost is proportional to the
 number of scores ahead of the submitted one.
+
+### Access pattern for sortable columns
+
+The leaderboard can now be sorted by `points`, `elapsedMs` or `playerName` in either direction. Each
+sort dimension is a real query path, not a display concern.
+
+The planned access pattern is a single GSI whose partition key encodes both the board-size filter
+and the sort dimension (`<boardSize>#<sort>` or `all#<sort>`), with the sort value encoded in the
+sort key. One index serves every ordering instead of one index per ordering.
+
+| Sort | Partition key example | Sort key prefix | Direction |
+| --- | --- | --- | --- |
+| `points` | `5#points` or `all#points` | `pad(999999 - points, 6)` | `desc` reads ascending SK |
+| `elapsedMs` | `5#elapsedMs` or `all#elapsedMs` | `pad(elapsedMs, 9)` | `asc` reads ascending SK, `desc` reads reverse |
+| `playerName` | `5#playerName` or `all#playerName` | `playerNameLower` | `asc` reads ascending SK, `desc` reads reverse |
+
+The sort key continues with `createdAt` and `id` to preserve the contract's deterministic
+tiebreaker chain.
+
+Cost: one index item per sort dimension per score. With three sortable columns that is three index
+items per score. The name dimension requires a normalized attribute (`playerNameLower`) because
+case-insensitive ordering cannot be produced directly from the original attribute in DynamoDB. The
+item is written at the same time as the score, so reads never compute it.
+
+Reads remain server-side queries; the client sends `sort`/`order` and renders exactly what the API
+returns.
 
 ## Failure modes
 
