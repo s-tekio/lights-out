@@ -38,7 +38,7 @@ describe('Game', () => {
     fireEvent.click(cell);
 
     expect(screen.getByText(/Solved in/i)).toBeInTheDocument();
-    expect(screen.getByText(/Score submission will be added here/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Player name/i)).toBeInTheDocument();
   });
 
   it('does not start the timer before the first press', () => {
@@ -82,5 +82,27 @@ describe('Game', () => {
 
     expect(screen.getByText('Moves: 0')).toBeInTheDocument();
     expect(screen.getByText('Time: 0:00')).toBeInTheDocument();
+  });
+
+  it('ignores presses after the board is already solved', () => {
+    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+
+    const cell = screen.getByRole('button', { name: 'Row 1, Column 1' });
+    fireEvent.click(cell);
+    expect(screen.getByText('Moves: 1')).toBeInTheDocument();
+
+    fireEvent.click(cell);
+    expect(screen.getByText('Moves: 1')).toBeInTheDocument();
+  });
+
+  it('changing difficulty starts a new board of the selected size', () => {
+    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+
+    fireEvent.change(screen.getByLabelText(/Difficulty/i), {
+      target: { value: 'hard' },
+    });
+
+    expect(screen.getByText('Moves: 0')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Row 1, Column 7/i)).toBeInTheDocument();
   });
 });

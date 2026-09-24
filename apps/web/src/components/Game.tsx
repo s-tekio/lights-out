@@ -20,6 +20,7 @@ type GameState = {
 type GameProps = {
   readonly initialDifficultyId?: DifficultyId;
   readonly random?: () => number;
+  readonly onScoreSubmitted?: () => void;
 };
 
 function createInitialState(difficulty: Difficulty, random: () => number): GameState {
@@ -38,6 +39,7 @@ function createInitialState(difficulty: Difficulty, random: () => number): GameS
 export function Game({
   initialDifficultyId = DEFAULT_DIFFICULTY_ID,
   random = Math.random,
+  onScoreSubmitted,
 }: GameProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>(() =>
     findDifficultyById(initialDifficultyId),
@@ -105,8 +107,10 @@ export function Game({
         elapsedMs={state.elapsedMs}
         isSolved={state.status === 'solved'}
         currentDifficultyId={difficulty.id}
+        boardSize={difficulty.boardSize}
         onDifficultyChange={handleDifficultyChange}
         onNewGame={startNewGame}
+        onScoreSubmitted={onScoreSubmitted}
       />
       <Board
         size={difficulty.boardSize}

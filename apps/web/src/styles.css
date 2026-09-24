@@ -67,6 +67,85 @@ body {
   color: var(--color-text);
 }
 
+.leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderboard__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.leaderboard__header h2 {
+  margin: 0;
+}
+
+.leaderboard__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.leaderboard__controls label {
+  font-weight: 600;
+}
+
+.leaderboard__controls select,
+.leaderboard__controls button {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-muted);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.leaderboard__controls button {
+  background-color: var(--color-accent);
+  color: #0f172a;
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.leaderboard__controls button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.leaderboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard__table th,
+.leaderboard__table td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-surface);
+}
+
+.leaderboard__table th {
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.leaderboard__error {
+  color: #f87171;
+}
+
+.leaderboard__empty,
+.leaderboard__loading {
+  color: var(--color-muted);
+}
+
 .game {
   display: flex;
   flex-direction: column;
@@ -130,6 +209,48 @@ body {
   margin-top: 0.25rem;
   color: var(--color-muted);
   font-style: italic;
+}
+
+.status__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.status__form label {
+  font-weight: 600;
+}
+
+.status__form input[type='text'] {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-muted);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.status__form input[type='text']:disabled {
+  opacity: 0.6;
+}
+
+.status__form button {
+  margin-left: 0;
+}
+
+.status__error {
+  width: 100%;
+  margin: 0.25rem 0 0;
+  color: #f87171;
+  font-size: 0.875rem;
+}
+
+.status__rank {
+  margin-top: 0.5rem;
+  font-weight: 700;
+  color: var(--color-accent);
 }
 
 .board {
