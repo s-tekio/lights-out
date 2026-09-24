@@ -28,9 +28,7 @@ export function Board({ size, board, disabled, onPress }: BoardProps) {
             aria-pressed={lit}
             disabled={disabled}
             onClick={() => onPress(index)}
-          >
-            <span aria-hidden="true">{lit ? '●' : '○'}</span>
-          </button>
+          />
         );
       })}
     </div>
