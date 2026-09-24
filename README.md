@@ -230,7 +230,7 @@ override rather than a single accidental command.
 | Lint | `npm run lint` | Passing, zero warnings |
 | Format | `npm run format:check` | Passing |
 | Types | `npm run typecheck` | Passing, both workspaces |
-| Tests | `npm run test:coverage` | 170 tests passing |
+| Tests | `npm run test:coverage` | 171 tests passing |
 | Coverage gate | `npm run test:coverage` | API 87% statements, web 93.8% statements |
 | Build | `npm run build` | Passing |
 

@@ -106,7 +106,12 @@ describe('HelpDialog', () => {
 
     const backdrop = screen.getByRole('dialog').parentElement;
     expect(backdrop).toHaveClass('dialog-backdrop');
-    fireEvent.click(backdrop!);
+
+    if (backdrop === null) {
+      throw new Error('Expected the dialog to have a backdrop parent element');
+    }
+
+    fireEvent.click(backdrop);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

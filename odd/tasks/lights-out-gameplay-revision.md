@@ -41,6 +41,12 @@ Measured against an independent boolean-array reference:
 | All 49 single-press boards | 0 mismatches — which is why the previous tests passed |
 | 1000 seeded random 7×7 boards | 44 mismatches, in both directions |
 
+**Reproducibility caveat.** The buggy implementation was never committed: `solver.ts` did not exist
+before `d360a5f`. The measurements above were taken in-session against uncommitted code, so they
+cannot be re-measured from the repository history. The counterexample board, however, is committed
+as a regression test, and it provably fails against the old behaviour. Independent verification
+therefore confirmed the *fix* rather than the historical measurement.
+
 Consequence: the `minPresses` guarantee for Hard was not enforced at all, and the solver was simply
 wrong above 32 cells. Moving to 9×9 (81 cells) would have made it worse.
 
@@ -51,6 +57,7 @@ wrong above 32 cells. Moving to 9×9 (81 cells) would have made it worse.
 | Solver representation | Boolean-array depth-first search | A correct, obviously verifiable search beats a clever bitmask that was silently wrong. The search is small at the values used: `1 + n + C(n,2)` nodes, so 3322 for 9×9. |
 | Minimum presses | 3 for every difficulty | Uniform, and the check costs `isSolvableWithin(board, 2)`. On 5×5, 7×7 and 9×9 the natural minimum is far higher, so this is a safety net rather than the difficulty lever. |
 | Difficulty lever | Board size and scramble depth | Not `minPresses`. Finding three specific cells among eighty-one is not what makes a puzzle feel easy. |
+| Levels and scramble depths | Easy 5×5 depth 10, Normal 7×7 depth 20, Hard 9×9 depth 35 | Recorded here because the scramble depth is not derivable from anything else: it is a tuning value. |
 | API board size range | Widened from 3..7 to 3..9 | Widening keeps every previously accepted value valid, so it is backwards compatible. The API accepts a general range; the UI offers the three levels. |
 | Leaderboard filter | Levels in the UI, `boardSize` on the wire | The level is a UI label that can be relabelled; the board size is the durable fact about a score. Keeping `boardSize` in the contract means the API does not need to know about game options. |
 | Modal implementation | Hand-rolled dialog, not native `<dialog>` | jsdom 26 does not implement `HTMLDialogElement.showModal()`, so a native dialog could not be exercised by tests. A shim would make the tests assert the shim rather than the behaviour. |
@@ -81,7 +88,7 @@ wrong above 32 cells. Moving to 9×9 (81 cells) would have made it worse.
 | Task | Commit | Evidence |
 | --- | --- | --- |
 | T1, T2 | `d360a5f` | Parent verification, independent of the writer's own reference: anchored both the solver and a fresh reference against full brute force on 3×3 (0 mismatches); the exact counterexample now returns `false`; 1000 random 7×7 and 1000 random 9×9 boards cross-checked at `maxPresses` 0..2 with **0 mismatches**; 300 generated boards per difficulty with **0/300 below `minPresses`**. 148 tests total (71 API, 77 web). |
-| T3, T4 | `3a9d34b` | Parent verified the leaderboard still sends `boardSize` on the wire and the contract is untouched. 170 tests total (71 API, 100 web), web coverage 93.78%. |
+| T3, T4 | `3a9d34b` | Parent verified the leaderboard still sends `boardSize` on the wire and the contract is untouched. 171 tests total (71 API, 100 web), web coverage 93.78%. |
 
 ## Process notes
 
@@ -99,3 +106,12 @@ Two corrections were applied by the parent on top of the writer's output:
 | Verified the regression test has teeth rather than assuming it. | The test's counterexample is byte-for-byte the construction measured against the buggy implementation, which returned `true` where the reference returns `false`. The test therefore provably fails against the old code. |
 | Fixed focus stealing in `HelpDialog` on page load, with the regression test written first and observed failing. | The focus-restore effect ran on mount as well as on close, so the Help button took focus on page load and dropped a screen reader user into the header instead of the start of the document. |
 | Updated the README, which had gone stale. | It still advertised 3×3/5×5/7×7, a board-size filter, 124 tests and 94% web coverage. |
+| Corrected a test-count error that independent verification caught. | The README and this document both said 170 tests; the real total is 171 (71 API + 100 web). |
+
+## Known test limitation
+
+The help dialog currently has exactly one focusable element, its Close button. The Tab and Shift+Tab
+tests therefore assert that focus stays inside the dialog rather than proving a wrap between two
+distinct elements. Focus containment is the property that matters and it is covered; the wrap logic
+itself is written for the general case and was checked by reading, not by a test. Adding a second
+focusable element to the dialog would close this gap.
