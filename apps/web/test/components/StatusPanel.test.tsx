@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { submitScore, type SubmitScoreResponse } from '../api/scores';
-import { StatusPanel } from './StatusPanel';
+import { submitScore, type SubmitScoreResponse } from '../../src/api/scores';
+import { StatusPanel } from '../../src/components/StatusPanel';
 
-vi.mock('../api/scores', () => ({
+vi.mock('../../src/api/scores', () => ({
   submitScore: vi.fn(),
   fetchLeaderboard: vi.fn(),
   validatePlayerName: (name: string): string | null => {

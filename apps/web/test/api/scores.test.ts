@@ -8,7 +8,7 @@ import {
   UnparseableResponseError,
   type FetchLike,
   type Score,
-} from './scores';
+} from '../../src/api/scores';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

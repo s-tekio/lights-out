@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ValidationError } from '../domain/errors.js';
-import type { Score } from '../domain/score.js';
-import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
-import { listTopScores, submitScore } from './ranking-service.js';
+import { ValidationError } from '../../src/domain/errors.js';
+import type { Score } from '../../src/domain/score.js';
+import type { ListTopOptions, ScoreRepository } from '../../src/ports/score-repository.js';
+import { listTopScores, submitScore } from '../../src/application/ranking-service.js';
 
 class InMemoryRepository implements ScoreRepository {
   private readonly scores: Score[] = [];

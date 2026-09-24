@@ -5,7 +5,7 @@ import {
   MOVE_PENALTY_PER_EXCESS_MOVE,
   parMoves,
   TIME_PENALTY_PER_SECOND,
-} from './score.js';
+} from '../../src/domain/score.js';
 
 describe('parMoves', () => {
   it('returns boardSize times two', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createBoard, toggleAt } from './board';
-import { isSolvableWithin } from './solver';
+import { createBoard, toggleAt } from '../../src/game/board';
+import { isSolvableWithin } from '../../src/game/solver';
 
 function applyPresses(board: ReturnType<typeof createBoard>, presses: readonly number[]) {
   let current = board;

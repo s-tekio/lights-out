@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import App from './App';
+import App from '../src/App';
 
-vi.mock('./api/scores', () => ({
+vi.mock('../src/api/scores', () => ({
   fetchLeaderboard: vi.fn().mockResolvedValue({
     items: [],
     limit: 10,

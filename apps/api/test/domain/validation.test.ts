@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseScoreQuery, parseScoreSubmission } from './validation.js';
+import { parseScoreQuery, parseScoreSubmission } from '../../src/domain/validation.js';
 
 describe('parseScoreSubmission', () => {
   it('accepts a valid submission', () => {

@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSolvableBoard } from '../game/board';
-import { findDifficultyById } from '../game/difficulty';
-import { Game } from './Game';
+import { createSolvableBoard } from '../../src/game/board';
+import { findDifficultyById } from '../../src/game/difficulty';
+import { Game } from '../../src/components/Game';
 
 function constantRandom(value: number): () => number {
   return () => value;

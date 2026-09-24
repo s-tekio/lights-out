@@ -7,7 +7,7 @@ import {
   formatBoardSizeLabel,
   formatDifficultyLabel,
   isDifficultyId,
-} from './difficulty';
+} from '../../src/game/difficulty';
 
 describe('isDifficultyId', () => {
   it('returns true for every known difficulty id', () => {

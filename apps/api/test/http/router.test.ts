@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Score } from '../domain/score.js';
-import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
-import { route, type ApiResponse } from './router.js';
+import type { Score } from '../../src/domain/score.js';
+import type { ListTopOptions, ScoreRepository } from '../../src/ports/score-repository.js';
+import { route, type ApiResponse } from '../../src/http/router.js';
 
 class InMemoryRepository implements ScoreRepository {
   private readonly scores: Score[] = [];

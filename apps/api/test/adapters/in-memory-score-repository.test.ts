@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { Score } from '../domain/score.js';
-import { InMemoryScoreRepository } from './in-memory-score-repository.js';
+import type { Score } from '../../src/domain/score.js';
+import { InMemoryScoreRepository } from '../../src/adapters/in-memory-score-repository.js';
 
 function score(partial: Omit<Score, 'id'> & Partial<Pick<Score, 'id'>>): Score {
   return {

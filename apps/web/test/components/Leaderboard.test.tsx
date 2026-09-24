@@ -1,10 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchLeaderboard, type LeaderboardResponse, type Score } from '../api/scores';
-import { DIFFICULTIES, findDifficultyById, formatDifficultyLabel } from '../game/difficulty';
-import { Leaderboard } from './Leaderboard';
+import { fetchLeaderboard, type LeaderboardResponse, type Score } from '../../src/api/scores';
+import { DIFFICULTIES, findDifficultyById, formatDifficultyLabel } from '../../src/game/difficulty';
+import { Leaderboard } from '../../src/components/Leaderboard';
 
-vi.mock('../api/scores', () => ({
+vi.mock('../../src/api/scores', () => ({
   fetchLeaderboard: vi.fn(),
   submitScore: vi.fn(),
   getScoresErrorMessage: vi.fn((error: unknown) =>

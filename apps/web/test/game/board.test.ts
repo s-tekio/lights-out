@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createBoard, createSolvableBoard, isSolved, toggleAt } from './board';
-import { isSolvableWithin } from './solver';
-import { DIFFICULTIES, MAX_BOARD_SIZE, MIN_BOARD_SIZE } from './difficulty';
+import { createBoard, createSolvableBoard, isSolved, toggleAt } from '../../src/game/board';
+import { isSolvableWithin } from '../../src/game/solver';
+import { DIFFICULTIES, MAX_BOARD_SIZE, MIN_BOARD_SIZE } from '../../src/game/difficulty';
 
 function seededRandom(seed: number): () => number {
   let state = seed;
