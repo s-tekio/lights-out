@@ -54,7 +54,7 @@ Responses:
     "boardSize": 5,
     "moves": 7,
     "elapsedMs": 42310,
-    "points": 2290,
+    "points": 2500,
     "createdAt": "2026-09-24T12:00:00.000Z"
   },
   "rank": 3
@@ -87,7 +87,7 @@ Response `200 OK`:
       "boardSize": 5,
       "moves": 7,
       "elapsedMs": 42310,
-      "points": 2290,
+      "points": 2500,
       "createdAt": "2026-09-24T12:00:00.000Z"
     }
   ],
@@ -141,16 +141,60 @@ the plain size otherwise.
 Points are computed server-side from the reported game outcome:
 
 ```
-parMoves   = boardSize * 2                        (heuristic par, not the puzzle minimum)
-base       = boardSize * boardSize * 100
-movePenalty= max(0, moves - parMoves) * 25
-timePenalty= floor(elapsedMs / 1000) * 5
-points     = max(0, round(base - movePenalty - timePenalty))
+parMoves    = boardSize * 2                                   (heuristic par, not the puzzle minimum)
+base        = boardSize * boardSize * 100
+referenceMs = boardSize * boardSize * 2000
+moveFactor  = min(1, parMoves / max(1, moves))
+timeFactor  = min(1, referenceMs / max(1, elapsedMs))
+points      = max(0, round(base * moveFactor * timeFactor))
 ```
 
+`moveFactor` is 1.0 when the player finishes at or below the heuristic par, then decays smoothly
+as moves increase. `timeFactor` is 1.0 when the player finishes at or below the reference duration
+(18 s for 3×3, 50 s for 5×5, 98 s for 7×7), then decays smoothly as time increases. The maximum
+score for a level is therefore its `base`: 900 for Easy, 2500 for Normal, 4900 for Hard.
+
 `parMoves` is a deliberate heuristic: the true minimum number of presses for an arbitrary Lights
-Out configuration is not a fixed value per board size. The formula is documented rather than
-tuned, and the constants live in `apps/api/src/domain/score.ts`.
+Out configuration is not a fixed value per board size. Once the server issues puzzles and knows
+each board's real minimum, `parMoves` can be replaced by that minimum and `moveFactor` becomes a
+true efficiency ratio. The constants live in `apps/api/src/domain/score.ts`.
+
+### Why the formula changed
+
+The previous formula was a fixed base minus unbounded linear penalties, clamped with `max(0, …)`:
+
+```
+points = max(0, round(base - max(0, moves - parMoves) * 25 - floor(elapsedMs / 1000) * 5))
+```
+
+That clamp is a cut, not a floor: every result past the break-even point collapsed into the same
+indistinguishable zero. Measured saturation points:
+
+| Level | Base | Zeroed out beyond | Zeroed out at |
+| --- | --- | --- | --- |
+| Easy 3×3 | 900 | 3:00 of play, regardless of skill | 43 moves |
+| Normal 5×5 | 2500 | 8:20 | 111 moves |
+| Hard 7×7 | 4900 | 16:20 | 211 moves |
+
+A perfect Easy game of three moves scored 750 at 30 s, 600 at 60 s, 300 at 120 s and 0 at 180 s. A
+real user submitted Easy 3×3 in 71 moves and 1:06 and got 0. The multiplicative formula replaces
+the subtraction with a product of two factors in `(0, 1]`, so every extra move and every extra
+second keeps lowering the score without ever saturating at zero.
+
+Existing stored scores keep their old point values. Only new submissions use the new formula.
+
+### Worked example
+
+For `boardSize 5`, `moves 7`, `elapsedMs 42310`:
+
+```
+base        = 5 * 5 * 100           = 2500
+parMoves    = 5 * 2                 = 10
+referenceMs = 5 * 5 * 2000          = 50000
+moveFactor  = min(1, 10 / 7)        = 1
+timeFactor  = min(1, 50000 / 42310) = 1
+points      = round(2500 * 1 * 1)   = 2500
+```
 
 ## Ordering
 

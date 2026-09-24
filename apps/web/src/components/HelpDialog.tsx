@@ -135,9 +135,10 @@ export function HelpDialog({ isOpen, onClose, triggerRef }: HelpDialogProps) {
               your points from moves and time; the client never sends a score.
             </p>
             <p>
-              Scoring uses a base value per board cell, a penalty for presses above a par of twice
-              the board size, and a penalty per second. Rankings order by higher points first, then
-              by faster time.
+              Scoring starts from a base value per board cell and multiplies it by how close you
+              came to the par (twice the board size) and by how fast you were against the reference
+              time. A perfect run at or below par and within the reference time scores the full
+              base. Rankings order by higher points first, then by faster time.
             </p>
             <p>
               Your rank appears after submitting. Use the level filter to narrow the list, and

@@ -160,5 +160,11 @@ describe('HelpDialog', () => {
     expect(screen.getByText(/New game/i)).toBeInTheDocument();
     expect(screen.getByText(/timer starts on your first press/i)).toBeInTheDocument();
     expect(screen.getByText(/server computes your points/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /multiplies it by how close you came to the par .* and by how fast you were against the reference time/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/A perfect run .* scores the full base/i)).toBeInTheDocument();
   });
 });

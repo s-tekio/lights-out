@@ -114,7 +114,8 @@ describe('route', () => {
     expect(body.score.boardSize).toBe(5);
     expect(body.score.moves).toBe(7);
     expect(body.score.elapsedMs).toBe(42_310);
-    expect(body.score.points).toBe(2_290);
+    // Inside par and inside the reference time, so the full base of 2500.
+    expect(body.score.points).toBe(2_500);
     expect(body.rank).toBe(1);
   });
 

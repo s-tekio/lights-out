@@ -74,7 +74,7 @@ destroyed.
 
 - [x] **T1 — Test layout.** Move every test file into `test/` in both applications, mirroring `src/`,
   and update the `tsconfig` files, the Vitest configs and every import path. No behaviour change.
-- [ ] **T2 — Multiplicative scoring.** Replace the additive formula, update the contract's scoring
+- [x] **T2 — Multiplicative scoring.** Replace the additive formula, update the contract's scoring
   section, and update the help dialog copy, which currently describes penalties that will no longer
   exist. Update the affected tests.
 - [ ] **T3 — Verification.** Independent verification of both.
@@ -84,6 +84,22 @@ destroyed.
 | Task | Commit | Evidence |
 | --- | --- | --- |
 | T1 | bookkeeping | 14 files moved with `git mv`, and `find` confirms no `*.test.ts(x)` remains under either `src/`. Parent verification: lint, format, typecheck, 199 tests and build all green. Coverage unchanged at API 86.57 / 90 / 100 and web 94.16 / 93.54 / 94.36, which proves the measured set did not change. `apps/api/dist/local-server.js` still exists and no test is emitted into `dist`. `npm run lint` reported no `projectService` problem with two tsconfig projects present. |
+| T2 | this commit | Formula replaced with the bounded product. 205 tests (98 API, 107 web). Parent verification: 0 mismatches against an independent reimplementation of the spec over 18 963 input combinations, 0 bound violations and 0 monotonicity violations. Motivating cases: the user's game 21 (was 0), a perfect Easy game at 3:00 at 90 (was 0), the 43 moves that used to zero it now 126, and an absurd input still 0. Contract examples recomputed from 2290 to 2500. |
+
+## Process note
+
+The writer task for T2 was given surfaces that excluded `apps/api/test/application`,
+`apps/api/test/http` and the web test fixtures, so three assertions on the computed point value were
+left failing and the writer correctly reported them instead of editing outside its scope. That was a
+specification error by the parent, not a writer error. The parent fixed the three assertions.
+
+Fixture values elsewhere (`points: 2_290` in router fixtures, `points: 2290` in web fixtures) were
+deliberately left alone. They are arbitrary input data for ordering and rendering tests, not computed
+outputs, and two router fixtures even reuse the same value for different board sizes, which a real
+formula output could not do. Changing them would be churn with no effect on what the tests prove.
+The one historical record of `points: 2290` in `odd/tasks/lights-out-bootstrap.md` is also untouched:
+it records what the server returned at that commit under the old formula, and editing an evidence log
+to match a later change would falsify the record.
 
 ## Known limitations after this change
 
