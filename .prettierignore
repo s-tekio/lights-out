@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+package-lock.json
+.husky/
+
+# Markdown is deliberately excluded. Prettier pads Markdown tables to align
+# columns, so editing a single table cell rewrites every row of that table and
+# buries the real change in review noise. Prose and tables are maintained by
+# hand; code and configuration stay under Prettier.
+*.md
