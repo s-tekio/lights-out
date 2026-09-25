@@ -290,12 +290,20 @@ These are real and current, not hypothetical:
   Closing this needs server-side puzzle state or replay, which is a feature, not a configuration.
 - **No authentication.** Player names are self-declared and unverified. Anyone can submit under
   any name.
-- **Scores do not persist across a restart.** The repository is in-memory; the DynamoDB adapter
-  arrives with the infrastructure work.
+- **Scores do not persist, and the leaderboard is inconsistent by construction.** Each Lambda
+  execution environment holds its own in-memory list, so a score written in one is invisible to the
+  others. Measured: three sequential submissions accumulated, while seventeen accepted parallel ones
+  left every read reporting a single score. The DynamoDB adapter in slice 1b is what fixes this.
+- **The account caps Lambda concurrency at 10.** A burst of twenty parallel requests throttled three
+  of them, API Gateway answered `5xx`, and the alarm fired correctly. The assignment asks the API to
+  survive a reasonable spike; a ceiling of 10 throttles instead. Raising it needs a quota increase or
+  provisioned concurrency, neither of which a student lab account allows.
 - **No anti-abuse controls.** No rate limiting, no captcha, no moderation.
-- **Deployment is partially implemented.** The Terraform for slice 1a exists and has passed static
-  checks, but it has not been applied against AWS. The DynamoDB adapter, the frontend hosting
-  stack and the push-to-main CI/CD pipeline are still missing.
+- **Deployment is partially implemented.** The Terraform for slice 1a is applied and the API is
+  verified live on AWS `eu-west-1`. Still missing: the DynamoDB adapter, the frontend hosting stack,
+  and the push-to-main CI/CD pipeline, which the account's temporary credentials and denied IAM
+  management make unreachable. Least privilege is also unreachable, since the account denies IAM
+  management and the pre-existing execution role must be reused as-is.
 
 ## Roadmap
 

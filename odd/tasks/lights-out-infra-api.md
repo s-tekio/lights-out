@@ -68,9 +68,44 @@ Three sequential submissions from the same warm execution environment accumulate
 
 So the submissions were accepted; what fails is that each Lambda execution environment holds its own isolated in-memory list. That is the concrete justification for slice 1b, not a theoretical one: the leaderboard is inconsistent by construction as long as the repository is in-memory.
 
-### Not verified
+### The alarms, verified with a real event
 
-The alarms firing. The 500 path requires a storage failure and the in-memory repository only produces one under injection, so it could not be provoked through the deployed API. The wiring is confirmed at the configuration level; the notification path itself is not exercised.
+The first claim here was that the alarms could not be provoked and were only verified at the
+configuration level. That turned out to be wrong: a real event happened during verification and the
+alarm caught it.
+
+| Metric at 12:48 | Value |
+| --- | --- |
+| API Gateway `5xx` | 3 |
+| Lambda `Throttles` | 3 |
+| Lambda `ConcurrentExecutions` (max) | 10 |
+| Account concurrency limit | 10 |
+
+The three `5xx` responses were **throttling, not a code failure**: the student account caps Lambda
+concurrency at 10 and the verification script fired 20 parallel submissions. Ten ran, three were
+rejected, API Gateway answered `5xx`, and `lights-out-dev-api-gateway-5xx` went OK to ALARM at
+12:49:03, executed its SNS action and returned to OK at 13:04. `lights-out-dev-lambda-errors` stayed
+OK throughout, which is exactly right: throttling is not a function error.
+
+So the full alarm to SNS to email path is proven with an event that actually occurred, rather than
+asserted from configuration.
+
+### Correction to the earlier in-memory demonstration
+
+The first write-up said that twenty parallel submissions produced a leaderboard of one, which read as
+though all twenty had been accepted. Three were rejected with `5xx` by throttling. The accurate
+statement is that **seventeen were accepted** and the reads still reported one score, because the
+concurrent execution environments each hold their own in-memory list. The conclusion is unchanged and
+in fact stronger, since it holds across as many as ten isolated environments.
+
+### Environment-imposed capacity ceiling
+
+The account's Lambda concurrency limit is 10. The assignment asks the API to survive a reasonable
+traffic spike; with a ceiling of 10 the API throttles instead. In a normal account this is solved
+with a quota increase or provisioned concurrency, and neither is available in a student lab. It is
+recorded as an environment limitation, alongside least privilege and the CI/CD deployment block, and
+it also shapes how these endpoints can be verified: bursts of parallel requests are not a usable test
+method here.
 
 ## What was NOT verified
 
