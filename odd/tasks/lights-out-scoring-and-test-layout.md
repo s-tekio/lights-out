@@ -101,6 +101,43 @@ The one historical record of `points: 2290` in `odd/tasks/lights-out-bootstrap.m
 it records what the server returned at that commit under the old formula, and editing an evidence log
 to match a later change would falsify the record.
 
+## Revision 2 — scoring rework postponed
+
+The user found a second scoring defect from play: three Easy games of 3 moves in 1 s, 3 moves in 2 s
+and 5 moves in 3 s all scored 900.
+
+Both factors are pinned at 1 for those games, because 3 and 5 presses are both at or below `parMoves
+= 6` and 1 s, 2 s and 3 s are all far below the 18 s reference. So the score is the base exactly.
+
+The flat top is large: the base is reached by any game with `moves <= parMoves` and `elapsedMs <=
+referenceMs`, which is a rectangle of 7 by 18 s on Easy, 10 by 50 s on Normal and 14 by 98 s on Hard.
+
+This is the same failure mode as the original defect, at the opposite end: `max(0, …)` collapsed bad
+games into one indistinguishable zero, and `min(1, …)` collapses good games into one indistinguishable
+maximum. The proposal claimed the product "cannot saturate", which was only true downward, and that
+was not flagged.
+
+### Decision
+
+The user chose to **postpone the scoring rework and resolve it server-side**, on the grounds that the
+move reference improves once the server knows each board's real minimum.
+
+That reasoning is correct for the move reference and for anti-cheat, but the parent clarified one
+point before closing: **the time ceiling is independent of where the score is computed.** It is a
+property of `min(1, …)`, so server-issued puzzles will not remove it, and that decision will still be
+waiting when the server work lands.
+
+The defect is recorded as a known limitation in `docs/api-contract.md` and in `README.md` rather than
+left as a latent bug, and the `parMoves` miscalibration is recorded alongside it with the measured
+numbers.
+
+### Deferred to the server-side feature
+
+- Replacing `parMoves` with each board's real minimum, which needs server-issued puzzles.
+- Replaying a submitted press sequence to verify a game was actually played.
+- Choosing the time-factor shape: capped with a tight reference, or strictly decreasing with an
+  asymptotic maximum. Still an open product decision.
+
 ## Known limitations after this change
 
 - `par = boardSize × 2` remains a heuristic unrelated to the board, so `moveFactor` is still not a

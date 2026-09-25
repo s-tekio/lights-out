@@ -154,6 +154,36 @@ as moves increase. `timeFactor` is 1.0 when the player finishes at or below the 
 (18 s for 3×3, 50 s for 5×5, 98 s for 7×7), then decays smoothly as time increases. The maximum
 score for a level is therefore its `base`: 900 for Easy, 2500 for Normal, 4900 for Hard.
 
+**Known ceiling.** Both factors are capped, so the score is flat above the reference: any game with
+`moves <= parMoves` and `elapsedMs <= referenceMs` scores exactly the base, and play faster or more
+efficient than that is not rewarded. The flat region is large, because both references are generous:
+
+| Level | Base reached by any game with |
+| --- | --- |
+| Easy 3×3 | moves <= 6 and time <= 18 s |
+| Normal 5×5 | moves <= 10 and time <= 50 s |
+| Hard 7×7 | moves <= 14 and time <= 98 s |
+
+Reported from real play: three Easy games of 3 moves in 1 s, 3 moves in 2 s and 5 moves in 3 s all
+scored 900, despite not being equivalent performances.
+
+This is deliberate and postponed, not overlooked. A capped score **cannot** reward being faster than
+the next player inside the flat region: that requires a strictly decreasing factor, which makes the
+maximum asymptotic and unattainable. That trade-off is a product decision still to be taken, and it
+is recorded here so it is not rediscovered as a bug.
+
+Moving the computation to the server does **not** fix this. Server-issued puzzles fix `parMoves`,
+because the server then knows each board's real minimum, and they make the anti-cheat check possible.
+The ceiling is a property of `min(1, …)` and is independent of where the score is computed.
+
+Separately, `parMoves` itself is miscalibrated in both directions, measured over generated boards:
+
+| Level | `parMoves` | Real minimum | Optimal play penalised on |
+| --- | --- | --- | --- |
+| Easy 3×3 | 6 | 3 to 5 (median 3) | 0/60 boards, so the move dimension never discriminates |
+| Normal 5×5 | 10 | 5 to 13 (median 9) | 15/60 boards |
+| Hard 7×7 | 14 | 10 to 22 (median 18) | 46/60 boards |
+
 `parMoves` is a deliberate heuristic: the true minimum number of presses for an arbitrary Lights
 Out configuration is not a fixed value per board size. Once the server issues puzzles and knows
 each board's real minimum, `parMoves` can be replaced by that minimum and `moveFactor` becomes a

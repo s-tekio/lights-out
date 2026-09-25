@@ -241,6 +241,12 @@ mechanism that enforces it, so it states only rules that can actually be checked
 
 These are real and current, not hypothetical:
 
+- **The score is flat at the top.** Both scoring factors are capped, so any Easy game of six or
+  fewer presses finished within 18 seconds scores exactly the maximum of 900, and the same applies
+  proportionally at the other levels. Play faster than the reference is not rewarded, which means
+  two genuinely different performances can score identically. This is deliberate and postponed, not
+  overlooked: removing the flat top means making the maximum asymptotic, which is a product decision
+  still to be taken. The contract's scoring section records it.
 - **The leaderboard cannot be trusted against a determined cheater.** The server computes points
   from the reported outcome, which prevents submitting an arbitrary score value, but it cannot
   verify that a game was played. A client can report any plausible `moves` and `elapsedMs` pair.
