@@ -1,5 +1,5 @@
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import type { Score } from '../domain/score.js';
 import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
 import type { SortColumn, SortOrder } from '../domain/validation.js';
@@ -14,10 +14,10 @@ export const NATURAL_SORT_DIRECTION: Record<SortColumn, SortOrder> = {
   playerName: 'asc',
 };
 
-const INDEX_BY_SORT: Record<SortColumn, string> = {
-  points: 'by-points',
-  elapsedMs: 'by-time',
-  playerName: 'by-player',
+const INDEX_BY_SORT_AND_SCOPE: Record<SortColumn, Record<'all' | 'board', string>> = {
+  points: { all: 'by-points-all', board: 'by-points-board' },
+  elapsedMs: { all: 'by-time-all', board: 'by-time-board' },
+  playerName: { all: 'by-player-all', board: 'by-player-board' },
 };
 
 export function padNumber(value: number, width: number): string {
@@ -25,7 +25,7 @@ export function padNumber(value: number, width: number): string {
 }
 
 /**
- * Encode the sort key for the `by-points` GSI.
+ * Encode the sort key for the points GSI.
  *
  * The leading component is inverted so that ascending DynamoDB order is
  * descending points. The remaining components keep their natural ascending
@@ -36,7 +36,7 @@ export function encodePointsKey(score: Score): string {
 }
 
 /**
- * Encode the sort key for the `by-time` GSI.
+ * Encode the sort key for the time GSI.
  *
  * All components are in natural ascending order: elapsedMs, createdAt, id.
  */
@@ -45,7 +45,7 @@ export function encodeTimeKey(score: Score): string {
 }
 
 /**
- * Encode the sort key for the `by-player` GSI.
+ * Encode the sort key for the player GSI.
  *
  * All components are in natural ascending order: normalized name, original
  * name, createdAt, id.
@@ -81,10 +81,11 @@ function encodeSortKey(score: Score, sort: SortColumn): string {
   return encodePlayerKey(score);
 }
 
-export function buildScoreItem(score: Score, scopeKey: string): Record<string, unknown> {
+export function buildScoreItem(score: Score): Record<string, unknown> {
   return {
     id: score.id,
-    scopeKey,
+    allScope: 'all',
+    boardScope: `board#${score.boardSize}`,
     playerName: score.playerName,
     playerNameLower: score.playerName.toLowerCase(),
     boardSize: score.boardSize,
@@ -113,19 +114,21 @@ function mapItemToScore(item: Record<string, unknown>): Score {
 /**
  * DynamoDB implementation of {@link ScoreRepository}.
  *
- * Each score is written twice: once with scopeKey = "all" and once with
- * scopeKey = "board#<boardSize>". Both copies share the same GSI sort keys,
- * so the three GSIs serve both unfiltered and board-size-filtered leaderboard
- * queries.
+ * Each score is stored as a single item with two scope attributes:
+ * `allScope = "all"` and `boardScope = "board#<boardSize>"`. The six GSIs
+ * provide every query path: all scores vs. one board size, times the three
+ * sort dimensions. Direction is handled by `ScanIndexForward`, not by extra
+ * indexes.
  *
- * The two copies are one logical record: a score must appear in both the
- * unfiltered and the board-size-filtered leaderboards, or in neither.
- * `save` therefore writes them in a single transaction.
+ * `save` uses a single PutItem. The previous design wrote the same score as
+ * two items (global and per-board) and needed a transaction to keep them
+ * consistent; storing one item removes that problem by construction, so no
+ * transaction is required.
  *
- * `rankOf` counts rows ranked ahead of the submitted score on the `by-points`
- * index using `scopeKey = "all"`. A concurrent write between the transaction
- * and the count query can shift the reported rank by one; this is inherent to
- * a leaderboard and is not hidden behind a transaction.
+ * `rankOf` counts rows ranked ahead of the submitted score on the
+ * `by-points-all` index. A concurrent write between the PutItem and the count
+ * query can shift the reported rank by one; this is inherent to a leaderboard
+ * and is not hidden behind a transaction.
  */
 export class DynamoDbScoreRepository implements ScoreRepository {
   constructor(
@@ -134,15 +137,13 @@ export class DynamoDbScoreRepository implements ScoreRepository {
   ) {}
 
   async save(score: Score): Promise<Score> {
-    const globalItem = buildScoreItem(score, 'all');
-    const boardItem = buildScoreItem(score, `board#${score.boardSize}`);
-
+    // One item per score makes PutItem atomic by construction. The atomicity
+    // problem in the previous design came from denormalising one record into
+    // two items; storing one item removes it.
     await this.docClient.send(
-      new TransactWriteCommand({
-        TransactItems: [
-          { Put: { TableName: this.tableName, Item: globalItem } },
-          { Put: { TableName: this.tableName, Item: boardItem } },
-        ],
+      new PutCommand({
+        TableName: this.tableName,
+        Item: buildScoreItem(score),
       }),
     );
 
@@ -150,15 +151,17 @@ export class DynamoDbScoreRepository implements ScoreRepository {
   }
 
   async listTop({ limit, boardSize, sort, order }: ListTopOptions): Promise<readonly Score[]> {
-    const indexName = INDEX_BY_SORT[sort];
-    const scope = scopeFor(boardSize);
+    const scope: 'all' | 'board' = boardSize === null ? 'all' : 'board';
+    const indexName = INDEX_BY_SORT_AND_SCOPE[sort][scope];
+    const partitionKey = scope === 'all' ? 'allScope' : 'boardScope';
+    const scopeValue = scope === 'all' ? 'all' : `board#${boardSize}`;
 
     const result = await this.docClient.send(
       new QueryCommand({
         TableName: this.tableName,
         IndexName: indexName,
-        KeyConditionExpression: 'scopeKey = :scope',
-        ExpressionAttributeValues: { ':scope': scope },
+        KeyConditionExpression: `${partitionKey} = :scope`,
+        ExpressionAttributeValues: { ':scope': scopeValue },
         ScanIndexForward: scanIndexForward(sort, order),
         Limit: limit,
       }),
@@ -173,8 +176,8 @@ export class DynamoDbScoreRepository implements ScoreRepository {
     const result = await this.docClient.send(
       new QueryCommand({
         TableName: this.tableName,
-        IndexName: 'by-points',
-        KeyConditionExpression: 'scopeKey = :scope AND pointsKey < :key',
+        IndexName: 'by-points-all',
+        KeyConditionExpression: 'allScope = :scope AND pointsKey < :key',
         ExpressionAttributeValues: { ':scope': 'all', ':key': sortKey },
         Select: 'COUNT',
       }),

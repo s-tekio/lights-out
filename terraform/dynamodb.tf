@@ -1,10 +1,9 @@
 # DynamoDB table for the score leaderboard.
 #
-# The table primary key is id (partition) + scopeKey (sort). A score is written
-# twice: once with scopeKey = "all" for unfiltered leaderboard queries, and once
-# with scopeKey = "board#<boardSize>" for board-size-filtered queries. Both
-# copies share the same GSI sort keys, so each of the three GSIs serves both
-# access patterns without a table scan.
+# A score is stored as a single item. The two scope attributes let the six
+# GSIs serve the two query shapes (all scores vs. one board size) across the
+# three sort dimensions. A single PutItem is atomic by construction, so no
+# transaction is needed.
 #
 # `#` is a safe separator in the sort-key encodings: player names are
 # allow-listed to [A-Za-z0-9 _\-.], createdAt is ISO 8601, and id is a UUID,
@@ -14,10 +13,9 @@ resource "aws_dynamodb_table" "scores" {
   billing_mode                = "PAY_PER_REQUEST"
   deletion_protection_enabled = true
 
-  # The table keys stay as hash_key/range_key: the provider schema exposes no
-  # key_schema block at this level, and neither argument is deprecated here.
-  hash_key  = "id"
-  range_key = "scopeKey"
+  # The table level uses hash_key; global_secondary_index uses key_schema blocks.
+  # The provider deprecates the single-argument form only inside the index block.
+  hash_key = "id"
 
   attribute {
     name = "id"
@@ -25,7 +23,12 @@ resource "aws_dynamodb_table" "scores" {
   }
 
   attribute {
-    name = "scopeKey"
+    name = "allScope"
+    type = "S"
+  }
+
+  attribute {
+    name = "boardScope"
     type = "S"
   }
 
@@ -45,10 +48,10 @@ resource "aws_dynamodb_table" "scores" {
   }
 
   global_secondary_index {
-    name = "by-points"
+    name = "by-points-all"
 
     key_schema {
-      attribute_name = "scopeKey"
+      attribute_name = "allScope"
       key_type       = "HASH"
     }
 
@@ -61,10 +64,10 @@ resource "aws_dynamodb_table" "scores" {
   }
 
   global_secondary_index {
-    name = "by-time"
+    name = "by-time-all"
 
     key_schema {
-      attribute_name = "scopeKey"
+      attribute_name = "allScope"
       key_type       = "HASH"
     }
 
@@ -77,10 +80,58 @@ resource "aws_dynamodb_table" "scores" {
   }
 
   global_secondary_index {
-    name = "by-player"
+    name = "by-player-all"
 
     key_schema {
-      attribute_name = "scopeKey"
+      attribute_name = "allScope"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "playerKey"
+      key_type       = "RANGE"
+    }
+
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name = "by-points-board"
+
+    key_schema {
+      attribute_name = "boardScope"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "pointsKey"
+      key_type       = "RANGE"
+    }
+
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name = "by-time-board"
+
+    key_schema {
+      attribute_name = "boardScope"
+      key_type       = "HASH"
+    }
+
+    key_schema {
+      attribute_name = "timeKey"
+      key_type       = "RANGE"
+    }
+
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name = "by-player-board"
+
+    key_schema {
+      attribute_name = "boardScope"
       key_type       = "HASH"
     }
 

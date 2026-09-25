@@ -30,7 +30,7 @@ const score = {
 };
 
 describe('DynamoDbScoreRepository unit', () => {
-  it('writes both global and per-board items in one transaction', async () => {
+  it('writes a single item with both scope attributes', async () => {
     const { client, sent } = mockDocClient();
     const repo = new DynamoDbScoreRepository(client, 'scores');
 
@@ -38,21 +38,23 @@ describe('DynamoDbScoreRepository unit', () => {
 
     expect(sent).toHaveLength(1);
     const input = sent[0] as {
-      TransactItems: Array<{ Put: { TableName: string; Item: { scopeKey: string } } }>;
+      TableName: string;
+      Item: { allScope: string; boardScope: string; scopeKey?: string };
     };
-    expect(input.TransactItems).toHaveLength(2);
-    const scopes = input.TransactItems.map((item) => item.Put.Item.scopeKey).sort();
-    expect(scopes).toEqual(['all', 'board#5']);
+    expect(input.TableName).toBe('scores');
+    expect(input.Item.allScope).toBe('all');
+    expect(input.Item.boardScope).toBe('board#5');
+    expect(input.Item.scopeKey).toBeUndefined();
   });
 
-  it('rejects when the transaction fails', async () => {
-    const { client } = mockDocClient(() => Promise.reject(new Error('Transaction failed')));
+  it('rejects when the put fails', async () => {
+    const { client } = mockDocClient(() => Promise.reject(new Error('Put failed')));
     const repo = new DynamoDbScoreRepository(client, 'scores');
 
-    await expect(repo.save(score)).rejects.toThrow('Transaction failed');
+    await expect(repo.save(score)).rejects.toThrow('Put failed');
   });
 
-  it('queries the matching GSI for listTop', async () => {
+  it('queries the all-scope GSI when no board size is given', async () => {
     const { client, sent } = mockDocClient();
     const repo = new DynamoDbScoreRepository(client, 'scores');
 
@@ -62,18 +64,20 @@ describe('DynamoDbScoreRepository unit', () => {
       TableName: string;
       IndexName: string;
       KeyConditionExpression: string;
+      ExpressionAttributeValues: Record<string, unknown>;
       ScanIndexForward: boolean;
       Limit: number;
     };
     expect(input.TableName).toBe('scores');
-    expect(input.IndexName).toBe('by-points');
-    expect(input.KeyConditionExpression).toBe('scopeKey = :scope');
+    expect(input.IndexName).toBe('by-points-all');
+    expect(input.KeyConditionExpression).toBe('allScope = :scope');
+    expect(input.ExpressionAttributeValues[':scope']).toBe('all');
     // The points key is inverted, so ascending order is descending points.
     expect(input.ScanIndexForward).toBe(true);
     expect(input.Limit).toBe(10);
   });
 
-  it('uses the board scope when a boardSize filter is given', async () => {
+  it('queries the board-scope GSI when a boardSize filter is given', async () => {
     const { client, sent } = mockDocClient();
     const repo = new DynamoDbScoreRepository(client, 'scores');
 
@@ -84,12 +88,12 @@ describe('DynamoDbScoreRepository unit', () => {
       KeyConditionExpression: string;
       ExpressionAttributeValues: Record<string, unknown>;
     };
-    expect(input.IndexName).toBe('by-time');
-    expect(input.KeyConditionExpression).toBe('scopeKey = :scope');
+    expect(input.IndexName).toBe('by-time-board');
+    expect(input.KeyConditionExpression).toBe('boardScope = :scope');
     expect(input.ExpressionAttributeValues[':scope']).toBe('board#7');
   });
 
-  it('counts rows ahead on the by-points index for rankOf', async () => {
+  it('counts rows ahead on the by-points-all index for rankOf', async () => {
     const { client, sent } = mockDocClient();
     const repo = new DynamoDbScoreRepository(client, 'scores');
 
@@ -103,9 +107,9 @@ describe('DynamoDbScoreRepository unit', () => {
       ExpressionAttributeValues: Record<string, unknown>;
     };
     expect(input.TableName).toBe('scores');
-    expect(input.IndexName).toBe('by-points');
+    expect(input.IndexName).toBe('by-points-all');
     expect(input.Select).toBe('COUNT');
-    expect(input.KeyConditionExpression).toBe('scopeKey = :scope AND pointsKey < :key');
+    expect(input.KeyConditionExpression).toBe('allScope = :scope AND pointsKey < :key');
     expect(input.ExpressionAttributeValues[':scope']).toBe('all');
     expect(rank).toBe(1);
   });

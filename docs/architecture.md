@@ -138,16 +138,39 @@ the ordering is encoded into the key with inverted components.
 | Concern | Design |
 | --- | --- |
 | Table | `${project}-${environment}-scores`, on-demand billing, point-in-time recovery enabled, deletion protection on |
-| Primary key | `id` (UUID v4) partition, `scopeKey` sort, so a score can exist in both global and per-board scopes |
+| Primary key | `id` (UUID v4) only |
+| Scope attributes | `allScope = "all"`, `boardScope = "board#<boardSize>"` |
 | Attributes | `playerName`, `boardSize`, `moves`, `elapsedMs`, `points`, `createdAt`, `playerNameLower` |
-| GSI `by-points` | PK `scopeKey`, SK `pointsKey` |
-| GSI `by-time` | PK `scopeKey`, SK `timeKey` |
-| GSI `by-player` | PK `scopeKey`, SK `playerKey` |
+| GSI `by-points-all` | PK `allScope`, SK `pointsKey` |
+| GSI `by-time-all` | PK `allScope`, SK `timeKey` |
+| GSI `by-player-all` | PK `allScope`, SK `playerKey` |
+| GSI `by-points-board` | PK `boardScope`, SK `pointsKey` |
+| GSI `by-time-board` | PK `boardScope`, SK `timeKey` |
+| GSI `by-player-board` | PK `boardScope`, SK `playerKey` |
 
-Each score is written twice, in one transaction: once with `scopeKey = "all"` for unfiltered
-leaderboard queries, and once with `scopeKey = "board#<boardSize>"` for board-size-filtered queries.
-Both copies share the same GSI
-sort keys, so the three GSIs serve both access patterns without a table scan.
+Each score is stored as **one item**. The item carries both `allScope` and `boardScope`, and the
+six GSIs provide every query path. There are two query shapes (all scores vs. one board size)
+times three sort dimensions (`points`, `elapsedMs`, `playerName`). Direction is handled by
+`ScanIndexForward`, not by extra indexes.
+
+### Partition note
+
+The three `all`-scoped indexes have a single partition key value: `"all"`. That is unavoidable,
+because "the leaderboard across every board size" is one partition by definition and cannot be
+sharded without breaking global ordering. The three `board`-scoped indexes are sharded by board
+size. A single DynamoDB partition caps at roughly 3 000 read capacity units and 1 000 write
+capacity units per second. That ceiling is irrelevant at this scale and a real constraint at much
+larger ones.
+
+### Why there is no transaction
+
+`save` uses a single `PutItem`. The previous design stored each score as two items (one global copy
+and one per-board copy) and needed `TransactWriteItems` to keep them consistent. The Lambda
+execution role is explicitly scoped to `GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`,
+`BatchGetItem`, `BatchWriteItem`, `Query`, `Scan`, `DescribeTable`, `ListTables` and
+`ConditionCheckItem`; `TransactWriteItems` is not included, and IAM management is denied in this
+environment so the policy cannot be extended. Storing one item removes the consistency problem
+entirely: a single `PutItem` is atomic by construction, so the missing permission no longer matters.
 
 ### Sort-key encodings
 
@@ -156,9 +179,9 @@ sort keys, so the three GSIs serve both access patterns without a table scan.
 
 | GSI | Sort key | Natural direction |
 | --- | --- | --- |
-| `by-points` | `pad6(999999 - points) + '#' + pad9(elapsedMs) + '#' + createdAt + '#' + id` | `points` descending |
-| `by-time` | `pad9(elapsedMs) + '#' + createdAt + '#' + id` | `elapsedMs` ascending |
-| `by-player` | `playerNameLower + '#' + playerName + '#' + createdAt + '#' + id` | `playerName` ascending |
+| `by-points-*` | `pad6(999999 - points) + '#' + pad9(elapsedMs) + '#' + createdAt + '#' + id` | `points` descending |
+| `by-time-*` | `pad9(elapsedMs) + '#' + createdAt + '#' + id` | `elapsedMs` ascending |
+| `by-player-*` | `playerNameLower + '#' + playerName + '#' + createdAt + '#' + id` | `playerName` ascending |
 
 Why `pointsKey` works: subtracting `points` from a fixed maximum inverts the comparison, so
 ascending `pointsKey` order is descending points. The `elapsedMs`, `createdAt` and `id` components
@@ -185,9 +208,9 @@ non-uniformity is in the key encoding, not in the `ScanIndexForward` value.
 ### Rank calculation
 
 `rankOf` performs a single `Query` with `Select: COUNT` over `pointsKey < :thisPointsKey` on the
-`by-points` index with `scopeKey = "all"`, plus one. No table scan, no client-side sorting, and the
-cost is proportional to the number of scores ahead of the submitted one. A concurrent write between
-the `PutItem` and the count query can shift the reported rank by one; this is inherent to a
+`by-points-all` index with `allScope = "all"`, plus one. No table scan, no client-side sorting, and
+the cost is proportional to the number of scores ahead of the submitted one. A concurrent write
+between the `PutItem` and the count query can shift the reported rank by one; this is inherent to a
 leaderboard and is not hidden behind a transaction.
 
 ## Failure modes

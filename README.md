@@ -289,8 +289,8 @@ command.
 | Lint | `npm run lint` | Passing, zero warnings |
 | Format | `npm run format:check` | Passing |
 | Types | `npm run typecheck` | Passing, both workspaces |
-| Tests | `npm run test:coverage` | 267 tests passing, 1 skipped (DynamoDB Local not running) |
-| Coverage gate | `npm run test:coverage` | API 91.99% statements / 90.2% branches, web 95.04% statements |
+| Tests | `npm run test:coverage` | 289 tests passing, 0 skipped |
+| Coverage gate | `npm run test:coverage` | API 95.17% statements / 92.85% branches, web 95.04% statements / 94.5% branches |
 | Build | `npm run build` | Passing |
 
 `docs/engineering-standards.md` is the binding bar. Every rule in it carries an ID and the

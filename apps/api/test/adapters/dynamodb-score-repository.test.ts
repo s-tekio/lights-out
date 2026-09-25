@@ -42,38 +42,60 @@ async function createScoresTable(tableName: string): Promise<void> {
       new CreateTableCommand({
         TableName: tableName,
         BillingMode: 'PAY_PER_REQUEST',
-        KeySchema: [
-          { AttributeName: 'id', KeyType: 'HASH' },
-          { AttributeName: 'scopeKey', KeyType: 'RANGE' },
-        ],
+        KeySchema: [{ AttributeName: 'id', KeyType: 'HASH' }],
         AttributeDefinitions: [
           { AttributeName: 'id', AttributeType: 'S' },
-          { AttributeName: 'scopeKey', AttributeType: 'S' },
+          { AttributeName: 'allScope', AttributeType: 'S' },
+          { AttributeName: 'boardScope', AttributeType: 'S' },
           { AttributeName: 'pointsKey', AttributeType: 'S' },
           { AttributeName: 'timeKey', AttributeType: 'S' },
           { AttributeName: 'playerKey', AttributeType: 'S' },
         ],
         GlobalSecondaryIndexes: [
           {
-            IndexName: 'by-points',
+            IndexName: 'by-points-all',
             KeySchema: [
-              { AttributeName: 'scopeKey', KeyType: 'HASH' },
+              { AttributeName: 'allScope', KeyType: 'HASH' },
               { AttributeName: 'pointsKey', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },
           {
-            IndexName: 'by-time',
+            IndexName: 'by-time-all',
             KeySchema: [
-              { AttributeName: 'scopeKey', KeyType: 'HASH' },
+              { AttributeName: 'allScope', KeyType: 'HASH' },
               { AttributeName: 'timeKey', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
           },
           {
-            IndexName: 'by-player',
+            IndexName: 'by-player-all',
             KeySchema: [
-              { AttributeName: 'scopeKey', KeyType: 'HASH' },
+              { AttributeName: 'allScope', KeyType: 'HASH' },
+              { AttributeName: 'playerKey', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'by-points-board',
+            KeySchema: [
+              { AttributeName: 'boardScope', KeyType: 'HASH' },
+              { AttributeName: 'pointsKey', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'by-time-board',
+            KeySchema: [
+              { AttributeName: 'boardScope', KeyType: 'HASH' },
+              { AttributeName: 'timeKey', KeyType: 'RANGE' },
+            ],
+            Projection: { ProjectionType: 'ALL' },
+          },
+          {
+            IndexName: 'by-player-board',
+            KeySchema: [
+              { AttributeName: 'boardScope', KeyType: 'HASH' },
               { AttributeName: 'playerKey', KeyType: 'RANGE' },
             ],
             Projection: { ProjectionType: 'ALL' },
@@ -117,20 +139,20 @@ async function deleteScoresTable(tableName: string): Promise<void> {
 }
 
 async function clearScoresTable(tableName: string): Promise<void> {
-  const keys: Array<{ id: unknown; scopeKey: unknown }> = [];
+  const keys: Array<{ id: unknown }> = [];
   let lastEvaluatedKey: Record<string, unknown> | undefined;
 
   do {
     const page = await docClient.send(
       new ScanCommand({
         TableName: tableName,
-        ProjectionExpression: 'id, scopeKey',
+        ProjectionExpression: 'id',
         ExclusiveStartKey: lastEvaluatedKey,
       }),
     );
     const items = page.Items ?? [];
     for (const item of items) {
-      keys.push({ id: item.id, scopeKey: item.scopeKey });
+      keys.push({ id: item.id });
     }
     lastEvaluatedKey = page.LastEvaluatedKey;
   } while (lastEvaluatedKey !== undefined);

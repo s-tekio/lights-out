@@ -146,14 +146,15 @@ describe('scopeFor', () => {
 });
 
 describe('buildScoreItem', () => {
-  it('includes the score attributes and the requested scope', () => {
+  it('includes the score attributes and both scope attributes', () => {
     const item = buildScoreItem(
       score({ id: '00000000-0000-0000-0000-000000000001', playerName: 'Ana' }),
-      'board#5',
     );
 
     expect(item.id).toBe('00000000-0000-0000-0000-000000000001');
-    expect(item.scopeKey).toBe('board#5');
+    expect(item.allScope).toBe('all');
+    expect(item.boardScope).toBe('board#5');
+    expect(item.scopeKey).toBeUndefined();
     expect(item.playerName).toBe('Ana');
     expect(item.playerNameLower).toBe('ana');
     expect(item.boardSize).toBe(5);
