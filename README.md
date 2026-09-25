@@ -86,7 +86,7 @@ The API layer deliberately keeps third-party dependencies to a minimum. Domain a
 have none. The DynamoDB adapter is the first consumer of AWS SDK packages, so
 `@aws-sdk/client-dynamodb` and `@aws-sdk/lib-dynamodb` are the API's first runtime dependencies.
 They are required to talk to DynamoDB; no lighter substitute exists for that seam. `esbuild` is a
-devDependency used to bundle the Lambda handler into a single `lambda.mjs`.
+devDependency used to bundle the Lambda handler into a single `lambda.js`.
 
 ## Architecture
 

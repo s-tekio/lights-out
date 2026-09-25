@@ -11,7 +11,7 @@ data "aws_iam_role" "lambda_execution" {
 
 data "archive_file" "api" {
   type        = "zip"
-  source_file = "${path.module}/../apps/api/dist/lambda.mjs"
+  source_file = "${path.module}/../apps/api/dist/lambda.js"
   output_path = "${path.module}/api.zip"
 }
 

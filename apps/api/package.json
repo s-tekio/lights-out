@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/local-server.ts",
-    "build": "tsx scripts/bundle-lambda.ts",
+    "build": "tsx scripts/bundle-lambda.ts && tsx scripts/verify-lambda.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
