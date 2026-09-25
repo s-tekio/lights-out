@@ -1,11 +1,18 @@
+# The $default stage's invoke_url already ends with a trailing slash, so
+# appending a path produced a double slash in api_health_url. Trim it once and
+# build every exposed URL from the trimmed base.
+locals {
+  api_base_url = trimsuffix(aws_apigatewayv2_stage.api.invoke_url, "/")
+}
+
 output "api_endpoint" {
-  description = "Base URL of the API Gateway stage."
-  value       = aws_apigatewayv2_stage.api.invoke_url
+  description = "Base URL of the API Gateway stage, without a trailing slash."
+  value       = local.api_base_url
 }
 
 output "api_health_url" {
   description = "URL of the health endpoint exposed by the deployed API."
-  value       = "${aws_apigatewayv2_stage.api.invoke_url}/api/health"
+  value       = "${local.api_base_url}/api/health"
 }
 
 output "lambda_function_name" {

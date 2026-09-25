@@ -58,6 +58,19 @@ The user chose to split the work so each part is separately applicable and verif
 | --- | --- | --- |
 | 1a | this commit | `terraform fmt -check -recursive` clean, `terraform init -backend=false` succeeded **without credentials**, `terraform validate` reports the configuration valid. Parent verified independently: no `profile` attribute anywhere (only the comment explaining its absence), no account id, ARN literal or email address under `terraform/`, `default_tags` on the provider rather than per resource, the role obtained through `data "aws_iam_role"`, a single catch-all `ANY /api/{proxy+}` route, explicit log group with retention plus `depends_on` from the Lambda, two symptom-named alarms and a monthly budget. 235 tests still pass and the whole repo builds. |
 | 1a fixes | this commit | Two defects found in parent review. (1) `terraform/api.zip`, produced by `archive_file`, was **not gitignored**, so a build artefact could be committed; the user's own practices 15 and 16 have `lambda.zip` committed, so this was an inherited anti-pattern. Fixed by ignoring `terraform/*.zip`. (2) The README asserted the state bucket was "versioned, encrypted and public-access blocked" when only versioning had been confirmed; reworded as a checklist, since `encrypt = true` in the backend only covers the state object, not the bucket's default encryption. |
+| 1a deployed | `696384a` | User applied: 12 resources created. First calls returned 404 on every route, and the response body was the application's own error shape, which proved the chain was healthy (Lambda deployed and ran, role worked, API Gateway routed, router answered) and isolated the fault to the stage prefix. Fixed by naming the stage `$default`; plan showed 1 to add, 1 to destroy, only the stage. |
+| 1a verified | this commit | End-to-end against the live URL: `GET /api/health` 200 with `{"status":"ok","version":"0.1.0"}`, `POST /api/scores` 201 with `points: 900` for a 3x3 in 3 presses at 1.5 s (the exact base, as calculated by hand), invalid body 400 with per-field details, `GET /api/scores` 200 echoing `sort` and `order`, unknown route 404, `OPTIONS` 204. Both alarms confirmed wired to the SNS topic, and the user had already confirmed the subscription. |
+| 1a verified fix | this commit | `api_health_url` was emitted with a double slash, because the `$default` stage's `invoke_url` already ends in one. Trimmed with `trimsuffix` and both URLs now build from a trimmed base. Plan after the change: no resource changes, only the two outputs. |
+
+### Empirical demonstration that the in-memory store cannot back a leaderboard
+
+Three sequential submissions from the same warm execution environment accumulated as expected (reads returned 4 scores: the three plus the earlier one). Twenty parallel submissions, by contrast, left every subsequent read reporting a single score.
+
+So the submissions were accepted; what fails is that each Lambda execution environment holds its own isolated in-memory list. That is the concrete justification for slice 1b, not a theoretical one: the leaderboard is inconsistent by construction as long as the repository is in-memory.
+
+### Not verified
+
+The alarms firing. The 500 path requires a storage failure and the in-memory repository only produces one under injection, so it could not be provoked through the deployed API. The wiring is confirmed at the configuration level; the notification path itself is not exercised.
 
 ## What was NOT verified
 
