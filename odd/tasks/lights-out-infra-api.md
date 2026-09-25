@@ -123,6 +123,31 @@ method here.
 
 `tflint` and `trivy` are also absent locally, so those run for the first time in CI.
 
+## Decided, not implemented: purging the leaderboard
+
+The user wants a way to clear the leaderboard, and chose the **public endpoint with an AWS-style typed
+confirmation** over the alternatives. Design agreed:
+
+- `DELETE /api/scores` requires a confirmation field whose value must be the literal string `DELETE`.
+  Anything else is a `400` that states the required value. This is **accident prevention, not
+  security**, and the documentation must say exactly that rather than implying protection.
+- The response reports how many items were removed.
+- Implementation note: the execution role grants `Scan`, `DeleteItem` and `BatchDeleteItem`, so the
+  purge is a scan to collect keys followed by batched deletes in chunks of 25. A full scan is
+  proportional to table size, which is irrelevant here and would not be at scale.
+- `deletion_protection_enabled` protects the **table**, not its items, so it does not obstruct a bulk
+  delete. Worth knowing rather than assuming otherwise.
+- The UI gets a button with a confirmation dialog that requires typing `DELETE`, reusing the existing
+  modal pattern from the help dialog.
+
+Recorded as a known limitation, in the same register as the others: with no authentication, anyone
+who knows the URL can wipe the leaderboard. A real deployment needs a login and an admin role, which
+is what the user themselves said they would do in a real case.
+
+Rejected alternatives: a token in SSM Parameter Store that the Lambda checks, which cannot be called
+from the UI because anything the browser holds is not a secret, and a local AWS CLI script, which
+would need fresh credentials on every use given that the lab credentials expire.
+
 ## Open question blocking 1b
 
 Reusing the environment role as-is means the Lambda has whatever permissions that role already grants
