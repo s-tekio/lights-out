@@ -11,21 +11,14 @@ data "aws_iam_role" "lambda_execution" {
 
 data "archive_file" "api" {
   type        = "zip"
-  source_dir  = "${path.module}/../apps/api/dist"
+  source_file = "${path.module}/../apps/api/dist/lambda.mjs"
   output_path = "${path.module}/api.zip"
-
-  # Exclude the local development server and its source map; they are not part
-  # of the production Lambda package.
-  excludes = [
-    "local-server.js",
-    "local-server.js.map",
-  ]
 }
 
 resource "aws_lambda_function" "api" {
   function_name = local.function_name
   role          = data.aws_iam_role.lambda_execution.arn
-  handler       = "http/lambda.handler"
+  handler       = "lambda.handler"
   runtime       = "nodejs22.x"
   architectures = ["arm64"]
 
@@ -37,7 +30,8 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      LOG_LEVEL = "info"
+      LOG_LEVEL         = "info"
+      SCORES_TABLE_NAME = aws_dynamodb_table.scores.name
     }
   }
 

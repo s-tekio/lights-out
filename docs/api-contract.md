@@ -234,20 +234,38 @@ independent of the `sort`/`order` used to read the list:
 1. `points` descending (better score first)
 2. `elapsedMs` ascending (faster wins ties)
 3. `createdAt` ascending (earlier submission wins remaining ties)
+4. `id` ascending (stable, deterministic tiebreaker)
 
 `rank` in the `POST` response is the 1-based position of the submitted score under that canonical
 ordering, and it does not change when the list is later read with a different `sort` or `order`.
 
-For `GET /api/scores`, every ordering appends the same stable tiebreaker chain so that equal values
-never come back in arbitrary order:
+### Sortable dimensions and natural direction
 
-1. the requested column and direction
-2. `createdAt` ascending
-3. `id` ascending
+Each leaderboard column has a **natural direction**. In that direction the full ordering is exactly
+the one used for `rank` when the column is the leading one. The opposite direction is the **exact
+mirror** of the natural one, including the tiebreakers.
 
-`playerName` ordering is case-insensitive. The order is: normalized (lowercased) name ascending,
-then the original name ascending, then the tiebreaker chain. This matters because the DynamoDB
-adapter will need a normalized attribute to reproduce the same order cheaply.
+| Sort column | Natural direction | Natural ordering | Mirror ordering |
+| --- | --- | --- | --- |
+| `points` | descending | `points` desc, then `createdAt` asc, then `id` asc | `points` asc, then `createdAt` desc, then `id` desc |
+| `elapsedMs` | ascending | `elapsedMs` asc, then `createdAt` asc, then `id` asc | `elapsedMs` desc, then `createdAt` desc, then `id` desc |
+| `playerName` | ascending | normalized name asc, then original name asc, then `createdAt` asc, then `id` asc | normalized name desc, then original name desc, then `createdAt` desc, then `id` desc |
+
+The reason is mechanical, not stylistic. DynamoDB stores each sort dimension in a single
+lexicographic sort key. A `Query` can read that key forward (`ScanIndexForward = true`) or backward
+(`ScanIndexForward = false`), but it cannot reverse only the leading component while leaving the
+remaining components ascending. Reversing the whole key gives the exact mirror, so that is the
+guarantee the contract makes.
+
+Because the natural direction for `points` is descending, its sort key is encoded with an inverted
+leading component (`pad6(999999 - points)`). Reading that key forward therefore returns the highest
+score first. The other dimensions use an ascending leading component and read forward for their
+natural ascending order.
+
+`playerName` ordering is case-insensitive. The natural order is: normalized (lowercased) name
+ascending, then the original name ascending, then `createdAt` ascending, then `id` ascending. Its
+mirror reverses every component. This matters because the DynamoDB adapter stores a normalized
+attribute to reproduce the same order cheaply.
 
 **String comparisons are by UTF-16 code unit, not locale collation.** This is not a detail.
 `localeCompare` depends on the ambient locale, so the same data could order differently on a

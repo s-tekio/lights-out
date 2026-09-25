@@ -76,9 +76,17 @@ The API is layered so that persistence is replaceable:
 domain/       Scoring rules and validation. Imports nothing outside itself.
 application/  Use cases. Depends on domain and on ports only.
 ports/        Interfaces, such as ScoreRepository.
-adapters/     Implementations. The in-memory repository today, DynamoDB next.
+adapters/     Implementations. The in-memory repository for local dev, DynamoDB for AWS.
 http/         Framework-agnostic router, shared by the Lambda handler and the local server.
 ```
+
+### Runtime dependencies
+
+The API layer deliberately keeps third-party dependencies to a minimum. Domain and application code
+have none. The DynamoDB adapter is the first consumer of AWS SDK packages, so
+`@aws-sdk/client-dynamodb` and `@aws-sdk/lib-dynamodb` are the API's first runtime dependencies.
+They are required to talk to DynamoDB; no lighter substitute exists for that seam. `esbuild` is a
+devDependency used to bundle the Lambda handler into a single `lambda.mjs`.
 
 ## Architecture
 
@@ -162,9 +170,10 @@ That profile punishes provisioned, always-on infrastructure and rewards per-requ
 - **Vendor coupling.** The handlers are written against the API Gateway event shape. The domain
   and application layers are not: they are plain TypeScript, which is why the local dev server
   can run them unchanged.
-- **Weaker local parity.** DynamoDB is not PostgreSQL. The in-memory repository used in
-  development does not reproduce DynamoDB's consistency semantics, so the DynamoDB adapter needs
-  its own tests.
+- **Weaker local parity.** DynamoDB is not PostgreSQL. The in-memory repository used by default
+  in development does not reproduce DynamoDB's consistency semantics, so the DynamoDB adapter has
+  its own integration tests. Setting `SCORES_TABLE_NAME` and `DYNAMODB_ENDPOINT` points the local
+  server at DynamoDB Local for higher parity.
 - **Less infrastructure to learn.** VPC design, ALB listeners, target groups and Auto Scaling
   policies are genuinely valuable skills that this choice does not exercise. That is a real cost
   of the decision, not a hidden one.
@@ -204,9 +213,9 @@ traffic.
 
 ## Deployment
 
-Infrastructure as code for slice 1a lives under `terraform/`. It deploys the ranking API
-(Lambda + API Gateway HTTP API), CloudWatch log retention, two symptom-named alarms with an SNS
-email topic, and an AWS Budget. The DynamoDB table, the frontend hosting stack and a push-to-main
+Infrastructure as code under `terraform/` deploys the ranking API (Lambda + API Gateway HTTP API),
+the DynamoDB `scores` table with point-in-time recovery, CloudWatch log retention, two symptom-named
+alarms with an SNS email topic, and an AWS Budget. The frontend hosting stack and a push-to-main
 CI/CD pipeline are still missing and are listed at the end of this section.
 
 Prerequisites:
@@ -233,18 +242,31 @@ terraform -chdir=terraform apply
 ```
 
 After apply, the `api_health_url` output gives the endpoint to `curl`. API Gateway `auto_deploy`
-is enabled, so stage changes publish immediately.
+is enabled, so stage changes publish immediately. The `scores_table_name` and `scores_table_arn`
+outputs expose the new DynamoDB table.
 
-The CI pipeline added in this slice runs `terraform fmt -check -recursive`,
-`terraform init -backend=false`, `terraform validate`, plus `tflint` and a security scanner,
-without requiring long-lived AWS credentials in the repository.
+The CI pipeline runs `terraform fmt -check -recursive`, `terraform init -backend=false`,
+`terraform validate`, plus `tflint` and a security scanner, without requiring long-lived AWS
+credentials in the repository. The test job also starts DynamoDB Local and sets
+`REQUIRE_DDB_LOCAL=1`, so the DynamoDB integration tests run in CI and a skip becomes a failure.
+
+### Running against DynamoDB Local
+
+For higher local parity, start DynamoDB Local and point the API at it:
+
+```bash
+./scripts/start-dynamodb-local.sh
+SCORES_TABLE_NAME=lights-out-local-scores DYNAMODB_ENDPOINT=http://localhost:8000 npm run dev:api
+```
+
+The integration test suite creates the table itself when DynamoDB Local is reachable; if it is
+not, the suite skips with a loud warning, or fails when `REQUIRE_DDB_LOCAL=1` is set.
 
 What is still missing:
 
-1. The DynamoDB table and repository adapter (slice 1b).
-2. The frontend hosting stack: S3 origin, CloudFront distribution and origin access control
+1. The frontend hosting stack: S3 origin, CloudFront distribution and origin access control
    (slice 2).
-3. The GitHub Actions job that runs `terraform plan` on pull requests and `terraform apply` on
+2. The GitHub Actions job that runs `terraform plan` on pull requests and `terraform apply` on
    pushes to `main`.
 
 ## Teardown
@@ -267,8 +289,8 @@ command.
 | Lint | `npm run lint` | Passing, zero warnings |
 | Format | `npm run format:check` | Passing |
 | Types | `npm run typecheck` | Passing, both workspaces |
-| Tests | `npm run test:coverage` | 171 tests passing |
-| Coverage gate | `npm run test:coverage` | API 87% statements, web 93.8% statements |
+| Tests | `npm run test:coverage` | 267 tests passing, 1 skipped (DynamoDB Local not running) |
+| Coverage gate | `npm run test:coverage` | API 91.99% statements / 90.2% branches, web 95.04% statements |
 | Build | `npm run build` | Passing |
 
 `docs/engineering-standards.md` is the binding bar. Every rule in it carries an ID and the
@@ -290,10 +312,10 @@ These are real and current, not hypothetical:
   Closing this needs server-side puzzle state or replay, which is a feature, not a configuration.
 - **No authentication.** Player names are self-declared and unverified. Anyone can submit under
   any name.
-- **Scores do not persist, and the leaderboard is inconsistent by construction.** Each Lambda
-  execution environment holds its own in-memory list, so a score written in one is invisible to the
-  others. Measured: three sequential submissions accumulated, while seventeen accepted parallel ones
-  left every read reporting a single score. The DynamoDB adapter in slice 1b is what fixes this.
+- **Least privilege is not achievable in the lab account.** The student account denies IAM
+  management, so the pre-existing execution role must be reused as-is. The Lambda therefore has
+  whatever permissions that role already grants, which may be broader than the table-scoped policy
+  the standards describe.
 - **The account caps Lambda concurrency at 10.** A burst of twenty parallel requests throttled three
   of them, API Gateway answered `5xx`, and the alarm fired correctly. The assignment asks the API to
   survive a reasonable spike; a ceiling of 10 throttles instead. Raising it needs a quota increase or

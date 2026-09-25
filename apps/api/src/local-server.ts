@@ -1,12 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
-import { InMemoryScoreRepository } from './adapters/in-memory-score-repository.js';
+import { createLocalScoreRepository } from './application/create-score-repository.js';
 import type { ScoreRepository } from './ports/score-repository.js';
 import { route, type ApiRequest, type ApiResponse } from './http/router.js';
 
 const PORT = Number(process.env.PORT ?? '3001');
 
-const repo: ScoreRepository = new InMemoryScoreRepository();
+const repo: ScoreRepository = createLocalScoreRepository();
 
 function readRequestBody(request: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {

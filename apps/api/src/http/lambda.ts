@@ -1,9 +1,9 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
-import { InMemoryScoreRepository } from '../adapters/in-memory-score-repository.js';
+import { createLambdaScoreRepository } from '../application/create-score-repository.js';
 import type { ScoreRepository } from '../ports/score-repository.js';
 import { route, type ApiRequest } from './router.js';
 
-const repo: ScoreRepository = new InMemoryScoreRepository();
+const repo: ScoreRepository = createLambdaScoreRepository();
 
 function decodeBody(event: APIGatewayProxyEventV2): string | undefined {
   if (event.body === undefined) {

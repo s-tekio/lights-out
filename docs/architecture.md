@@ -1,7 +1,7 @@
 # Architecture
 
 Companion to the architecture decision in the [README](../README.md). That document explains *why*
-serverless; this one explains *how* the pieces fit and what the AWS data model will look like.
+serverless; this one explains *how* the pieces fit and what the AWS data model looks like.
 
 ## Components
 
@@ -11,9 +11,9 @@ serverless; this one explains *how* the pieces fit and what the AWS data model w
 | `apps/api` domain | Scoring formula and input validation. Pure functions, no I/O. | Implemented |
 | `apps/api` application | Use cases: submit a score, list the leaderboard. | Implemented |
 | `apps/api` ports | `ScoreRepository`. The seam between business logic and storage. | Implemented |
-| `apps/api` adapters | `InMemoryScoreRepository`. `DynamoDbScoreRepository` is planned. | In-memory only |
+| `apps/api` adapters | `InMemoryScoreRepository` for local development, `DynamoDbScoreRepository` for AWS. | Implemented |
 | `apps/api` http | Framework-agnostic router plus a thin Lambda adapter and a local `node:http` server. | Implemented |
-| `terraform/` | Terraform for CloudFront, S3, API Gateway, Lambda, DynamoDB, IAM, alarms, budgets. | Slice 1a: Lambda, API Gateway, observability and budget; DynamoDB and hosting still missing |
+| `terraform/` | Infrastructure as code for the AWS stack. | Slice 1b: DynamoDB table added; frontend hosting still missing |
 
 ## The router is the centre of the design
 
@@ -128,58 +128,67 @@ This also does not change the security posture. The solution is already derivabl
 today, because the scramble lives there. Verifying that a game was actually played still requires
 server-issued puzzles, exactly as the known limitations say.
 
-## Planned DynamoDB data model
+## DynamoDB data model
 
-**Not implemented yet.** Recorded here so the adapter is written against a deliberate design
-rather than discovered by trial.
-
-The canonical ranking requires an exact ordering: `points` descending, then `elapsedMs` ascending,
-then `createdAt` ascending. DynamoDB sorts sort keys ascending, so the ordering is encoded into the
-key with inverted components.
+The table is implemented in `terraform/dynamodb.tf` and mirrored by the DynamoDB Local integration
+test setup. The canonical ranking requires an exact ordering: `points` descending, then `elapsedMs`
+ascending, then `createdAt` ascending, then `id` ascending. DynamoDB sorts sort keys ascending, so
+the ordering is encoded into the key with inverted components.
 
 | Concern | Design |
 | --- | --- |
-| Table | `scores`, on-demand billing, point-in-time recovery enabled, deletion protection on |
-| Partition key | `id` (UUID v4), for the write path |
+| Table | `${project}-${environment}-scores`, on-demand billing, point-in-time recovery enabled, deletion protection on |
+| Primary key | `id` (UUID v4) partition, `scopeKey` sort, so a score can exist in both global and per-board scopes |
 | Attributes | `playerName`, `boardSize`, `moves`, `elapsedMs`, `points`, `createdAt`, `playerNameLower` |
-| GSI `leaderboard-by-board-size` | PK `boardSize`, SK `rankKey` |
-| GSI `leaderboard-all-sizes` | PK `allSizes` (constant), SK `rankKey` |
-| `rankKey` | `pad(999999 - points, 6)` + `'#'` + `pad(elapsedMs, 9)` + `'#'` + `createdAt` + `'#'` + `id` |
+| GSI `by-points` | PK `scopeKey`, SK `pointsKey` |
+| GSI `by-time` | PK `scopeKey`, SK `timeKey` |
+| GSI `by-player` | PK `scopeKey`, SK `playerKey` |
 
-Why `rankKey` works: subtracting `points` from a fixed maximum inverts the comparison, so ascending
-`rankKey` order is descending `points`. The `elapsedMs` and `createdAt` components then break ties
-the way the contract requires, and the trailing `id` makes the key unique so two identical results
-cannot collide.
+Each score is written twice, in one transaction: once with `scopeKey = "all"` for unfiltered
+leaderboard queries, and once with `scopeKey = "board#<boardSize>"` for board-size-filtered queries.
+Both copies share the same GSI
+sort keys, so the three GSIs serve both access patterns without a table scan.
 
-Rank calculation becomes a single `Query` with `Select: COUNT` over `rankKey < :thisRankKey` in the
-same partition, plus one. No table scan, no client-side sorting, and the cost is proportional to the
-number of scores ahead of the submitted one.
+### Sort-key encodings
 
-### Access pattern for sortable columns
+`#` is a safe separator: player names are allow-listed to `[A-Za-z0-9 _\-.]`, `createdAt` is ISO
+8601, and `id` is a UUID, so none of them can contain it.
 
-The leaderboard can now be sorted by `points`, `elapsedMs` or `playerName` in either direction. Each
-sort dimension is a real query path, not a display concern.
+| GSI | Sort key | Natural direction |
+| --- | --- | --- |
+| `by-points` | `pad6(999999 - points) + '#' + pad9(elapsedMs) + '#' + createdAt + '#' + id` | `points` descending |
+| `by-time` | `pad9(elapsedMs) + '#' + createdAt + '#' + id` | `elapsedMs` ascending |
+| `by-player` | `playerNameLower + '#' + playerName + '#' + createdAt + '#' + id` | `playerName` ascending |
 
-The planned access pattern is a single GSI whose partition key encodes both the board-size filter
-and the sort dimension (`<boardSize>#<sort>` or `all#<sort>`), with the sort value encoded in the
-sort key. One index serves every ordering instead of one index per ordering.
+Why `pointsKey` works: subtracting `points` from a fixed maximum inverts the comparison, so
+ascending `pointsKey` order is descending points. The `elapsedMs`, `createdAt` and `id` components
+then break ties the way the contract requires, and the trailing `id` makes the key unique so two
+identical results cannot collide.
 
-| Sort | Partition key example | Sort key prefix | Direction |
+### The mirror rule
+
+A DynamoDB `Query` can read a sort key forward (`ScanIndexForward = true`) or backward
+(`ScanIndexForward = false`), but it cannot reverse only the leading component while leaving the
+remaining components ascending. Reversing the whole key gives the exact mirror of the natural
+direction, including the tiebreakers. That is the ordering guarantee the contract documents.
+
+| Sort column | Natural direction | `ScanIndexForward` for natural order | Mirror order |
 | --- | --- | --- | --- |
-| `points` | `5#points` or `all#points` | `pad(999999 - points, 6)` | `desc` reads ascending SK |
-| `elapsedMs` | `5#elapsedMs` or `all#elapsedMs` | `pad(elapsedMs, 9)` | `asc` reads ascending SK, `desc` reads reverse |
-| `playerName` | `5#playerName` or `all#playerName` | `playerNameLower` | `asc` reads ascending SK, `desc` reads reverse |
+| `points` | descending | `true` (the key itself is inverted) | `points` asc, then `createdAt` desc, then `id` desc |
+| `elapsedMs` | ascending | `true` | `elapsedMs` desc, then `createdAt` desc, then `id` desc |
+| `playerName` | ascending | `true` | normalized desc, then original desc, then `createdAt` desc, then `id` desc |
 
-The sort key continues with `createdAt` and `id` to preserve the contract's deterministic
-tiebreaker chain.
+The boolean mapping ends up uniform — forward for the natural direction, backward for the mirror —
+because every sort key is encoded so that ascending key order is the natural direction. The
+non-uniformity is in the key encoding, not in the `ScanIndexForward` value.
 
-Cost: one index item per sort dimension per score. With three sortable columns that is three index
-items per score. The name dimension requires a normalized attribute (`playerNameLower`) because
-case-insensitive ordering cannot be produced directly from the original attribute in DynamoDB. The
-item is written at the same time as the score, so reads never compute it.
+### Rank calculation
 
-Reads remain server-side queries; the client sends `sort`/`order` and renders exactly what the API
-returns.
+`rankOf` performs a single `Query` with `Select: COUNT` over `pointsKey < :thisPointsKey` on the
+`by-points` index with `scopeKey = "all"`, plus one. No table scan, no client-side sorting, and the
+cost is proportional to the number of scores ahead of the submitted one. A concurrent write between
+the `PutItem` and the count query can shift the reported rank by one; this is inherent to a
+leaderboard and is not hidden behind a transaction.
 
 ## Failure modes
 
@@ -221,7 +230,7 @@ known limitations and roadmap.
 | Request path | `/api/...` | `/api/...` | Identical, no rewrite rules |
 | Routing and validation | `http/router.ts` | `http/router.ts` | Same code |
 | Compute | `node:http` process | Lambda | Different, but both delegate to the router |
-| Storage | In-memory | DynamoDB | **Not equivalent.** Ordering is reproduced in code; consistency semantics are not. |
+| Storage | In-memory by default, or DynamoDB Local via `SCORES_TABLE_NAME` | DynamoDB | Equivalent when DynamoDB Local is used; ordering semantics are identical |
 | TLS | None | CloudFront | Different |
 | CORS | Permissive headers from the router | API Gateway plus router headers | Equivalent for this use |
 

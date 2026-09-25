@@ -29,3 +29,13 @@ output "log_group_name" {
   description = "Name of the CloudWatch Logs group for the Lambda function."
   value       = aws_cloudwatch_log_group.api.name
 }
+
+output "scores_table_name" {
+  description = "Name of the DynamoDB scores table."
+  value       = aws_dynamodb_table.scores.name
+}
+
+output "scores_table_arn" {
+  description = "ARN of the DynamoDB scores table."
+  value       = aws_dynamodb_table.scores.arn
+}
