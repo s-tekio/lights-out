@@ -1,0 +1,5 @@
+# Copy this file to terraform/terraform.tfvars and fill in the real values.
+# terraform.tfvars is gitignored so emails and owners never reach source control.
+
+owner       = "your-name"
+alert_email = "your-email@example.com"

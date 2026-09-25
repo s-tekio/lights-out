@@ -13,7 +13,7 @@ serverless; this one explains *how* the pieces fit and what the AWS data model w
 | `apps/api` ports | `ScoreRepository`. The seam between business logic and storage. | Implemented |
 | `apps/api` adapters | `InMemoryScoreRepository`. `DynamoDbScoreRepository` is planned. | In-memory only |
 | `apps/api` http | Framework-agnostic router plus a thin Lambda adapter and a local `node:http` server. | Implemented |
-| `infra` | Terraform for CloudFront, S3, API Gateway, Lambda, DynamoDB, IAM, alarms, budgets. | Not implemented |
+| `terraform/` | Terraform for CloudFront, S3, API Gateway, Lambda, DynamoDB, IAM, alarms, budgets. | Slice 1a: Lambda, API Gateway, observability and budget; DynamoDB and hosting still missing |
 
 ## The router is the centre of the design
 

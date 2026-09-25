@@ -21,14 +21,20 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Terraform (infrastructure arrives in the next feature)
+# Terraform
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 crash.log
 *.tfvars
 !*.tfvars.example
+
+# Keep the lock file for the application stack so provider versions are pinned.
+!terraform/.terraform.lock.hcl
+
+# The Lambda package produced by the archive_file data source is a build
+# artefact, not source. Committing it would put a stale zip in the repository.
+terraform/*.zip
 
 # AWS SAM / Lambda local tooling
 .aws-sam/

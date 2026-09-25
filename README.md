@@ -65,6 +65,7 @@ npm run clean          # remove build output and dependencies
 │   ├── api-contract.md      Frozen interface between web and api
 │   ├── architecture.md      Components, flows and the planned AWS data model
 │   └── engineering-standards.md  The binding bar for code and infrastructure
+├── terraform/               Infrastructure as code for the AWS stack
 ├── odd/tasks/               Feature task records
 └── .github/workflows/ci.yml CI pipeline
 ```
@@ -203,25 +204,61 @@ traffic.
 
 ## Deployment
 
-**Not yet implemented.** Infrastructure as code does not exist in this repository yet; no `infra/`
-directory has been created. The planned shape is:
+Infrastructure as code for slice 1a lives under `terraform/`. It deploys the ranking API
+(Lambda + API Gateway HTTP API), CloudWatch log retention, two symptom-named alarms with an SNS
+email topic, and an AWS Budget. The DynamoDB table, the frontend hosting stack and a push-to-main
+CI/CD pipeline are still missing and are listed at the end of this section.
 
-1. A minimal, manually applied bootstrap: the state bucket (versioned, encrypted, public access
-   blocked) and its lock table, plus the CI role.
-2. Terraform under `infra/` for CloudFront, S3, API Gateway, Lambda, DynamoDB, IAM, CloudWatch
-   alarms and AWS Budgets.
-3. A GitHub Actions job that runs `terraform plan` on pull requests and `terraform apply` on
-   `main`.
+Prerequisites:
 
-This section will carry reproducible commands once that work lands. It is stated as missing
-rather than described as if it existed.
+- Node.js 22+ and `npm install`.
+- AWS credentials configured on your machine. No credentials, account IDs or ARNs are committed;
+  the Terraform stack relies on the standard credential chain.
+- The state bucket `commit-academy-tf-lo` must exist in `eu-west-1` before the first `init`. It is
+  created outside Terraform, as the assignment allows for bootstrap. Only versioning has been
+  confirmed by hand so far; check that default encryption and public-access blocking are also on,
+  since `encrypt = true` in the backend only covers the state object itself.
+
+Reproducible commands. These have been validated locally with `terraform fmt` and
+`terraform validate`; `terraform plan` and `terraform apply` require your credentials and have not
+been run in this session:
+
+```bash
+npm run build
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+# Edit terraform.tfvars and set owner and alert_email.
+terraform -chdir=terraform init
+terraform -chdir=terraform plan
+terraform -chdir=terraform apply
+```
+
+After apply, the `api_health_url` output gives the endpoint to `curl`. API Gateway `auto_deploy`
+is enabled, so stage changes publish immediately.
+
+The CI pipeline added in this slice runs `terraform fmt -check -recursive`,
+`terraform init -backend=false`, `terraform validate`, plus `tflint` and a security scanner,
+without requiring long-lived AWS credentials in the repository.
+
+What is still missing:
+
+1. The DynamoDB table and repository adapter (slice 1b).
+2. The frontend hosting stack: S3 origin, CloudFront distribution and origin access control
+   (slice 2).
+3. The GitHub Actions job that runs `terraform plan` on pull requests and `terraform apply` on
+   pushes to `main`.
 
 ## Teardown
 
-**Not yet implemented**, for the same reason. The intended procedure is `terraform destroy`
-against the application stack, followed by the bootstrap resources. DynamoDB deletion protection
-and `prevent_destroy` on stateful resources mean teardown will require an explicit, deliberate
-override rather than a single accidental command.
+Once the stack has been applied, remove the application resources with:
+
+```bash
+terraform -chdir=terraform destroy
+```
+
+The state bucket itself, and any bootstrap resources used by the CI/CD role, must be destroyed
+separately. DynamoDB deletion protection and `prevent_destroy` on stateful resources mean that
+future teardown will require an explicit, deliberate override rather than a single accidental
+command.
 
 ## Testing and quality
 
@@ -256,12 +293,13 @@ These are real and current, not hypothetical:
 - **Scores do not persist across a restart.** The repository is in-memory; the DynamoDB adapter
   arrives with the infrastructure work.
 - **No anti-abuse controls.** No rate limiting, no captcha, no moderation.
-- **Deployment and teardown are not implemented yet**, as described above.
+- **Deployment is partially implemented.** The Terraform for slice 1a exists and has passed static
+  checks, but it has not been applied against AWS. The DynamoDB adapter, the frontend hosting
+  stack and the push-to-main CI/CD pipeline are still missing.
 
 ## Roadmap
 
-1. `infra/`: Terraform for the architecture above, the DynamoDB adapter, CloudWatch alarms and
-   AWS Budgets.
-2. CI/CD: `terraform plan` on pull requests, `apply` on `main`.
-3. Anti-cheat: server-issued puzzle state so a submission can be validated.
-4. Accounts, so scores belong to a verified identity.
+1. `terraform/`: finish the AWS stack with the DynamoDB table and adapter, CloudFront/S3 hosting,
+   and the CI/CD job that runs `terraform plan` on pull requests and `apply` on `main`.
+2. Anti-cheat: server-issued puzzle state so a submission can be validated.
+3. Accounts, so scores belong to a verified identity.
