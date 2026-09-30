@@ -262,6 +262,23 @@ SCORES_TABLE_NAME=lights-out-local-scores DYNAMODB_ENDPOINT=http://localhost:800
 The integration test suite creates the table itself when DynamoDB Local is reachable; if it is
 not, the suite skips with a loud warning, or fails when `REQUIRE_DDB_LOCAL=1` is set.
 
+### Running the dev UI against the deployed API
+
+The Vite dev server forwards `/api` to the local API by default, whose store lives in memory and is
+lost on every restart. To exercise the real Lambda and DynamoDB from the development UI instead,
+point the proxy at the API Gateway URL, which is the `api_endpoint` Terraform output:
+
+```bash
+VITE_API_PROXY_TARGET=https://<api-id>.execute-api.eu-west-1.amazonaws.com npm run dev:web
+```
+
+The browser still calls `/api/...`; only the proxy target changes, so no CORS is involved and the URL
+the application uses never moves. Verified by posting a score through the dev server and confirming
+the item appeared in the DynamoDB table.
+
+With that target the **Clear leaderboard** button wipes the deployed leaderboard for real, because
+the purge is unauthenticated by design. See the known limitations.
+
 What is still missing:
 
 1. The frontend hosting stack: S3 origin, CloudFront distribution and origin access control
