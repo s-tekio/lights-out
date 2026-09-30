@@ -143,7 +143,10 @@ resource "aws_cloudfront_distribution" "web" {
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
-    cache_policy_id = aws_cloudfront_cache_policy.web_index.id
+    # AWS managed policy: CachingDisabled (4135ea2d-6df8-44a3-9df3-4b5a84be39ad).
+    # index.html is not hashed, so it must be revalidated against S3 on every request
+    # instead of being served from the edge.
+    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
   }
 
   ordered_cache_behavior {
@@ -196,31 +199,13 @@ resource "aws_cloudfront_distribution" "web" {
   }
 }
 
-resource "aws_cloudfront_cache_policy" "web_index" {
-  name        = "${var.project_name}-${var.environment}-web-index"
-  comment     = "Never cache index.html; it references hashed assets and must be fresh on every request."
-  default_ttl = 0
-  max_ttl     = 0
-  min_ttl     = 0
-
-  parameters_in_cache_key_and_forwarded_to_origin {
-    # Nothing else belongs in the cache key: the SPA has no cookies, headers or
-    # query strings that should change what is served for index.html.
-    enable_accept_encoding_gzip = true
-
-    headers_config {
-      header_behavior = "none"
-    }
-
-    cookies_config {
-      cookie_behavior = "none"
-    }
-
-    query_strings_config {
-      query_string_behavior = "none"
-    }
-  }
-}
+# There is deliberately no custom cache policy for index.html. The AWS-managed
+# "CachingDisabled" policy already means exactly "never cache", and hand-writing one
+# is a trap: the first attempt was rejected because EnableAcceptEncodingGzip is
+# invalid when caching is disabled, and the attribute after that could have failed
+# the same way. A managed policy is valid by construction. A custom policy is kept
+# only where the requirement is genuinely custom, which here is the long asset TTL
+# below.
 
 resource "aws_cloudfront_cache_policy" "web_assets" {
   name        = "${var.project_name}-${var.environment}-web-assets"

@@ -55,13 +55,36 @@ expensive to diagnose:
 
 ## Tasks
 
-- [ ] **T1 — Terraform.** The site bucket, origin access control, distribution with both behaviours,
+- [x] **T1 — Terraform.** The site bucket, origin access control, distribution with both behaviours,
   the bucket policy, the object upload, the invalidation and the outputs.
-- [ ] **T2 — Documentation.** `docs/architecture.md` and the README: the deploy steps, the URL, and
+- [x] **T2 — Documentation.** `docs/architecture.md` and the README: the deploy steps, the URL, and
   what teardown requires.
 - [ ] **T3 — Verification.** Local: `fmt`, `validate` and a plan. Live, after the user applies: the app
   loads over HTTPS from the CloudFront URL, a game submitted from that page reaches DynamoDB, and the
   purge works from the UI.
+
+## Status
+
+Written, planned and committed as `b847e92`. `terraform fmt` and `validate` are clean at zero
+warnings, and the plan is **13 to add, 0 to change, 0 to destroy** with four new outputs. The apply is
+the user's.
+
+### Two corrections applied by the parent
+
+| Correction | Reason |
+| --- | --- |
+| Removed the CloudFront invalidation and the `local-exec` provisioner that performed it, replacing both with two explicit cache policies plus per-object `Cache-Control` metadata. | The writer's claim that the provider has no `aws_cloudfront_invalidation` resource is **correct** and was verified against the provider schema. It was still the wrong shape: a provisioner puts the invalidation outside Terraform's model and adds an AWS CLI dependency to every apply, CI included. The need is now designed away: hashed assets are immutable and cached for a year, `index.html` is not hashed and gets a zero-TTL policy so CloudFront revalidates it against S3, and the browser is told to do the same. |
+| The `/api/*` behaviour now uses `https-only` instead of `redirect-to-https`. | A redirect on an API call is not harmless: most clients follow a 301 or 302 from a POST as a GET, dropping the method and the body, so a submission over HTTP would have failed in a way that looked like a server bug. Pages still redirect, which is the friendlier answer for a browser. |
+
+## Not yet verified
+
+The apply has not run. Nothing has been proven against CloudFront: not the app loading over HTTPS,
+not the same-origin `/api` path, not the purge from the deployed UI. Those are the next checks.
+
+### Still to record after the apply
+
+The purge button becomes reachable by anyone who loads the deployed URL, which turns the earlier
+unauthenticated-purge decision from an abstraction into something concrete.
 
 ## Known limitations to record
 
