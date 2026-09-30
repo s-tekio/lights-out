@@ -1,13 +1,17 @@
 :root {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-text: #f8fafc;
-  --color-muted: #94a3b8;
-  --color-accent: #38bdf8;
+  --color-bg: #05010d;
+  --color-surface: #120a24;
+  --color-text: #ffffff;
+  --color-muted: #b8b0cc;
+  --color-accent: #c084fc;
+  --color-accent-strong: #a855f7;
   --color-lit: #facc15;
-  --color-unlit: #334155;
-  --radius: 0.5rem;
+  --color-unlit: #2a2140;
+  --radius: 0;
   --gap: 0.75rem;
+  --font-display:
+    Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', system-ui, sans-serif;
+  --font-body: ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace;
 }
 
 * {
@@ -16,13 +20,7 @@
 
 body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  font-family: var(--font-body);
   background-color: var(--color-bg);
   color: var(--color-text);
   line-height: 1.5;
@@ -33,6 +31,7 @@ body {
 }
 
 .app {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--gap);
@@ -42,186 +41,247 @@ body {
   min-height: 100vh;
 }
 
-.app__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.app__header h1 {
-  margin: 0;
+.app__main {
   flex: 1 1 auto;
-  font-size: 1.75rem;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
 }
 
-.app__header button {
+/* Space backdrop */
+.starfield {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.star {
+  position: absolute;
+  background-color: #ffffff;
+  border-radius: 0;
+  animation: twinkle ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* Navigation */
+.back-button {
+  align-self: flex-start;
   padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius);
-  border: 1px solid var(--color-muted);
-  background-color: var(--color-bg);
+  background-color: transparent;
   color: var(--color-text);
   font: inherit;
   cursor: pointer;
 }
 
-.app__main {
+.back-button:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+}
+
+/* Title treatment
+   Technique: the element carries the purple fill and a thin white stroke;
+   paint-order keeps the stroke from eating the fill. The ::before pseudo-
+   element carries the same text with a transparent fill and a thicker white
+   stroke, scaled slightly larger, to create the second ring with a real gap.
+   Degradation: browsers that do not support -webkit-text-stroke lose the white
+   rings but keep the purple text. The game remains playable and readable. */
+.game-title {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 12vw, 7rem);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+  -webkit-text-stroke: 2px #ffffff;
+  paint-order: stroke fill;
+  position: relative;
+  margin: 0;
+  line-height: 1;
+}
+
+.game-title::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  color: transparent;
+  -webkit-text-stroke: 6px #ffffff;
+  paint-order: stroke fill;
+  z-index: -1;
+  transform: scale(1.05);
+}
+
+/* Screen layouts */
+.title-screen,
+.difficulty-screen,
+.settings-screen,
+.leaderboard-screen {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
-.app__leaderboard {
-  border-top: 1px solid var(--color-surface);
+.leaderboard-screen {
+  justify-content: flex-start;
   padding-top: 1rem;
-  color: var(--color-muted);
 }
 
-.app__leaderboard h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.125rem;
+.screen-heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 6vw, 2.5rem);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* Menu entries */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 18rem;
+}
+
+.menu__entry,
+.game-menu__entry {
+  padding: 0.875rem 1.25rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: center;
+}
+
+.menu__entry:hover,
+.game-menu__entry:hover {
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.menu__entry:focus-visible,
+.game-menu__entry:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+}
+
+.game-menu__entry--emphasis {
+  border-color: var(--color-accent-strong);
+  background-color: var(--color-accent-strong);
   color: var(--color-text);
 }
 
-.leaderboard {
+.game-menu__entry--emphasis:hover {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Toggles */
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.25rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.toggle:hover {
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.toggle:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+}
+
+.toggle__state {
+  font-weight: 700;
+  min-width: 2rem;
+  text-align: right;
+}
+
+.settings__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 18rem;
+}
+
+/* Game screen */
+.game-screen {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding-top: 2.5rem;
+}
+
+.game-screen__menu-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.game-screen__menu-button:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+}
+
+.game-menu {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.leaderboard__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.leaderboard__header h2 {
-  margin: 0;
-}
-
-.leaderboard__controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  /* Without flex-wrap the label, select and two buttons are forced onto a
-     single row that can become wider than the viewport, causing horizontal
-     overflow and sideways scrolling on narrow screens. */
-}
-
-.leaderboard__controls label {
-  font-weight: 600;
-}
-
-.leaderboard__controls select,
-.leaderboard__controls button {
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-muted);
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.leaderboard__controls button {
-  background-color: var(--color-accent);
-  color: #0f172a;
-  border-color: var(--color-accent);
-  font-weight: 600;
-}
-
-.leaderboard__controls button.leaderboard__clear {
-  background-color: transparent;
-  color: #f87171;
-  border-color: #f87171;
-}
-
-.leaderboard__controls button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.leaderboard__controls button.leaderboard__icon-button {
-  /* Square, 44 CSS pixel touch target for reliable thumb activation on phones. */
-  width: 2.75rem;
-  height: 2.75rem;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-
-.leaderboard__table {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
-
-.leaderboard__table th,
-.leaderboard__table td {
-  padding: 0.5rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-surface);
-}
-
-.leaderboard__table th {
-  color: var(--color-muted);
-  font-weight: 600;
-  font-size: 0.875rem;
-}
-
-/* The header button exists only to make the header keyboard reachable, so it is
-   reset to read as plain header text. Without this reset it keeps the browser's
-   default button chrome, which makes one column look like a control while its
-   neighbours look like labels. */
-.leaderboard__sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.leaderboard__sort-icon {
-  opacity: 0.5;
-}
-
-.leaderboard__th--sorted .leaderboard__sort-icon {
-  color: var(--color-accent);
-  opacity: 1;
-}
-
-/* Removing the default button chrome also removes its focus ring, so keyboard
-   users would have no focus indicator at all without this rule. */
-.leaderboard__sort:focus-visible {
-  outline: 0.1875rem solid var(--color-accent);
-  outline-offset: 0.1875rem;
-  border-radius: 0.125rem;
-}
-
-.leaderboard__error {
-  color: #f87171;
-}
-
-.leaderboard__empty,
-.leaderboard__loading {
-  color: var(--color-muted);
-}
-
-.leaderboard__success {
-  color: var(--color-accent);
-}
-
 .game {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--gap);
@@ -248,27 +308,26 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.status label {
-  font-weight: 600;
-}
-
-.status select,
-.status button {
+.status__new-game {
+  margin-left: auto;
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius);
-  border: 1px solid var(--color-muted);
-  background-color: var(--color-bg);
-  color: var(--color-text);
+  border: 1px solid var(--color-accent);
+  background-color: var(--color-accent);
+  color: var(--color-bg);
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.status button {
-  margin-left: auto;
-  background-color: var(--color-accent);
-  color: #0f172a;
-  border-color: var(--color-accent);
-  font-weight: 600;
+.status__new-game:hover {
+  background-color: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
+}
+
+.status__new-game:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
 }
 
 .status__result {
@@ -286,46 +345,11 @@ body {
   font-style: italic;
 }
 
-.status__form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.status__form label {
-  font-weight: 600;
-}
-
-.status__form input[type='text'] {
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-muted);
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.status__form input[type='text']:disabled {
-  opacity: 0.6;
-}
-
-.status__form button {
-  margin-left: 0;
-}
-
 .status__error {
   width: 100%;
   margin: 0.25rem 0 0;
   color: #f87171;
   font-size: 0.875rem;
-}
-
-.status__rank {
-  margin-top: 0.5rem;
-  font-weight: 700;
-  color: var(--color-accent);
 }
 
 .board {
@@ -362,7 +386,7 @@ body {
    and aria-pressed carries the state for assistive technology. */
 .cell--unlit {
   background-color: var(--color-unlit);
-  border-color: #475569;
+  border-color: #3f3654;
   box-shadow: inset 0 0.125rem 0.375rem rgb(0 0 0 / 45%);
 }
 
@@ -374,15 +398,9 @@ body {
     inset 0 -0.125rem 0.25rem rgb(0 0 0 / 20%);
 }
 
-@media (max-width: 24rem) {
-  .app {
-    padding: 0.75rem;
-  }
-
-  .status select,
-  .status button {
-    flex: 1 1 auto;
-  }
+.cell--solution {
+  outline: 0.1875rem dashed var(--color-accent);
+  outline-offset: -0.25rem;
 }
 
 .dialog-backdrop {
@@ -392,7 +410,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background-color: rgb(0 0 0 / 70%);
+  background-color: rgb(0 0 0 / 80%);
   z-index: 100;
 }
 
@@ -405,6 +423,7 @@ body {
   max-height: calc(100vh - 2rem);
   padding: 1.25rem;
   border-radius: var(--radius);
+  border: 1px solid var(--color-accent);
   background-color: var(--color-surface);
   color: var(--color-text);
   box-shadow: 0 1rem 2rem rgb(0 0 0 / 40%);
@@ -412,7 +431,10 @@ body {
 
 .dialog h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .dialog__content {
@@ -443,10 +465,15 @@ body {
   border-radius: var(--radius);
   border: 1px solid var(--color-accent);
   background-color: var(--color-accent);
-  color: #0f172a;
+  color: var(--color-bg);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+.dialog button:hover {
+  background-color: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
 }
 
 .dialog button.dialog__confirm--destructive {
@@ -499,46 +526,283 @@ body {
   color: #f87171;
 }
 
-/* Solution highlight on the board. A dashed outline keeps the cell's own
-   lit/unlit surface unchanged, so the indicator does not rely on colour alone
-   and remains distinguishable in greyscale or with colour vision deficiency. */
-.cell--solution {
-  outline: 0.25rem dashed var(--color-accent);
-  outline-offset: 0.125rem;
-}
-
-.solution-reveal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-}
-
-.solution-reveal__summary {
+/* Shared bordered-field shape
+   A fieldset with a legend produces the label-sitting-on-the-border look and
+   gives the input its accessible name through aria-labelledby. The same markup
+   and styles are reused for the player-name entry and the purge dialog. */
+.fieldset-field {
   margin: 0;
-  font-variant-numeric: tabular-nums;
+  padding: 1rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
 }
 
-.solution-reveal__toggle {
-  margin-left: 0;
-  padding: 0.375rem 0.625rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-accent);
-  background-color: transparent;
+.fieldset-field legend {
+  padding: 0 0.5rem;
   color: var(--color-accent);
+  font-weight: 600;
+}
+
+.fieldset-field input[type='text'] {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.fieldset-field input[type='text']:disabled {
+  opacity: 0.6;
+}
+
+.fieldset-field input[aria-invalid='true'] {
+  border-color: #f87171;
+}
+
+.fieldset-field__error {
+  margin: 0.5rem 0 0;
+  color: #f87171;
+  font-size: 0.875rem;
+}
+
+/* Win sequence */
+.fireworks {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fireworks {
+    display: none;
+  }
+}
+
+.win-sequence {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.win-sequence .game-title {
+  text-align: center;
+}
+
+.win-sequence__form {
+  width: 100%;
+  max-width: 24rem;
+  pointer-events: auto;
+}
+
+.player-name-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.player-name-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.player-name-form__actions button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background-color: var(--color-accent);
+  color: var(--color-bg);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 
-.solution-reveal__list {
-  width: 100%;
-  margin: 0.25rem 0 0;
-  padding-left: 1.25rem;
-  font-variant-numeric: tabular-nums;
+.player-name-form__actions button:hover {
+  background-color: var(--color-accent-strong);
+  border-color: var(--color-accent-strong);
 }
 
-.solution-reveal__list li {
-  margin: 0.125rem 0;
+.player-name-form__actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.player-name-form__error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.875rem;
+}
+
+/* Leaderboard */
+.leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.leaderboard__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.leaderboard__header h2 {
+  margin: 0;
+}
+
+.leaderboard__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  /* Without flex-wrap the label, select and two buttons are forced onto a
+     single row that can become wider than the viewport, causing horizontal
+     overflow and sideways scrolling on narrow screens. */
+}
+
+.leaderboard__controls label {
+  font-weight: 600;
+}
+
+.leaderboard__controls select,
+.leaderboard__controls button {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-muted);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.leaderboard__controls button {
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.leaderboard__controls button.leaderboard__clear {
+  background-color: transparent;
+  color: #f87171;
+  border-color: #f87171;
+}
+
+.leaderboard__controls button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.leaderboard__controls button.leaderboard__icon-button {
+  /* Square, 44 CSS pixel touch target for reliable thumb activation on phones. */
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.leaderboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--color-accent);
+  font-variant-numeric: tabular-nums;
+  background-color: var(--color-surface);
+}
+
+.leaderboard__table th,
+.leaderboard__table td {
+  padding: 0.625rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-accent);
+}
+
+.leaderboard__table thead {
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.leaderboard__table th {
+  color: inherit;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.leaderboard__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* The header button exists only to make the header keyboard reachable, so it is
+   reset to read as plain header text. Without this reset it keeps the browser's
+   default button chrome, which makes one column look like a control while its
+   neighbours look like labels. */
+.leaderboard__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.leaderboard__sort-icon {
+  opacity: 0.8;
+}
+
+.leaderboard__th--sorted .leaderboard__sort-icon {
+  color: #ffffff;
+  opacity: 1;
+}
+
+/* Removing the default button chrome also removes its focus ring, so keyboard
+   users would have no focus indicator at all without this rule. */
+.leaderboard__sort:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.1875rem;
+  border-radius: 0.125rem;
+}
+
+.leaderboard__error {
+  color: #f87171;
+}
+
+.leaderboard__empty,
+.leaderboard__loading {
+  color: var(--color-muted);
+}
+
+.leaderboard__success {
+  color: var(--color-accent);
+}
+
+@media (max-width: 24rem) {
+  .app {
+    padding: 0.75rem;
+  }
+
+  .status__new-game {
+    flex: 1 1 auto;
+  }
 }

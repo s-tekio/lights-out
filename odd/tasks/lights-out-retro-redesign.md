@@ -1,6 +1,6 @@
 # Feature: lights-out-retro-redesign
 
-**Status:** in progress
+**Status:** complete (local only, not pushed at the user's request)
 **Branch:** `feat/bootstrap`
 **Created:** 2026-09-30
 **Workflow:** ODD (Organic Driven Development)
@@ -39,13 +39,32 @@ Local commits only. **No push** until they say so.
 
 ## Tasks
 
-- [ ] **R1 — Sound.** Split the music and effects switches, and take the music from relaxed to arcade.
-- [ ] **R2 — Space backdrop.** The starfield, and the retro foundation in the stylesheet.
-- [ ] **R3 — Screens.** Title, menu, difficulty and settings, with the app shell that moves between them.
-- [ ] **R4 — The game screen.** The board alone plus the in-game modal.
-- [ ] **R5 — The win sequence.** Fireworks, the headline, and the delayed name entry.
-- [ ] **R6 — The leaderboard screen.** The table and the restyled delete dialog.
-- [ ] **R7 — Verification and the record.** Local only.
+- [x] **R1 — Sound.** Split the music and effects switches, and take the music from relaxed to arcade. Recorded in `lights-out-sound.md`.
+- [x] **R2 — Space backdrop.** The starfield, and the retro foundation in the stylesheet.
+- [x] **R3 — Screens.** Title, menu, difficulty and settings, with the app shell that moves between them.
+- [x] **R4 — The game screen.** The board alone plus the in-game modal.
+- [x] **R5 — The win sequence.** Fireworks, the headline, and the delayed name entry.
+- [x] **R6 — The leaderboard screen.** The table and the restyled delete dialog.
+- [x] **R7 — Verification and the record.** Local only.
+
+## Verification evidence
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | exit 0 |
+| `npm run format:check` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0 |
+| `npm run test:coverage --workspace @lights-out/web` | exit 0, 259 tests in 26 files, 92.18% branch coverage |
+| No new dependency, webfont or binary asset | confirmed |
+
+The starfield is pinned by tests: seventy stars from a fixed seed, the same seed producing the same layout, a different seed a different one, all positions in range, all sizes one or two pixels. The navigation is pinned: every menu entry reaches its screen, a level reaches the game, and Back returns to the menu. The win sequence is pinned with fake timers: nothing of the name form exists before the delay and it exists after, and the timer does not outlive the component. The particle maths is pinned. The canvas is inert to clicks and the frame loop is cancelled on unmount, both checked against the source rather than asserted by a test.
+
+## What is deliberately not verified
+
+**Nobody has looked at it.** There is no headless browser here, so no test asserts that any of this looks right: not the palette, not the title's two rings, not the starfield's twinkle, not the layout on a phone. Those were reasoned about and the CSS was read, and that is a weaker claim than a measurement.
+
+The manual check: confirm the stars twinkle and that they stop twinkling with reduced motion enabled; confirm the name reads as purple inside two white rings; walk New Game to a level to the board; solve it and confirm the fireworks and the headline appear with the name form about a second later; confirm the form can be typed in, which is what the inert canvas protects; submit and confirm the leaderboard shows the score; then check the delete dialog wears the same bordered field shape.
 
 ## Known limitations to record
 

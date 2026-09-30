@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Board as GameBoard } from '../game/board';
 import { createSolvableBoard, isSolved, toggleAt } from '../game/board';
-import type { Difficulty, DifficultyId } from '../game/difficulty';
-import { DEFAULT_DIFFICULTY_ID, findDifficultyById } from '../game/difficulty';
+import type { DifficultyId } from '../game/difficulty';
+import { findDifficultyById } from '../game/difficulty';
 import { findOptimalSolution } from '../game/optimal';
 import type { SoundEngine } from '../sound/engine';
 import { Board } from './Board';
 import { StatusPanel } from './StatusPanel';
+import { WinSequence } from './WinSequence';
 
 type GameStatus = 'playing' | 'solved';
 
@@ -21,13 +22,15 @@ type GameState = {
 };
 
 type GameProps = {
-  readonly initialDifficultyId?: DifficultyId;
+  readonly difficultyId: DifficultyId;
   readonly random?: () => number;
   readonly onScoreSubmitted?: () => void;
+  readonly onMainMenu?: () => void;
   readonly sound?: SoundEngine;
 };
 
-function createInitialState(difficulty: Difficulty, random: () => number): GameState {
+function createInitialState(difficultyId: DifficultyId, random: () => number): GameState {
+  const difficulty = findDifficultyById(difficultyId);
   const { board, presses } = createSolvableBoard(
     difficulty.boardSize,
     difficulty.scrambleDepth,
@@ -47,16 +50,16 @@ function createInitialState(difficulty: Difficulty, random: () => number): GameS
 }
 
 export function Game({
-  initialDifficultyId = DEFAULT_DIFFICULTY_ID,
+  difficultyId,
   random = Math.random,
   onScoreSubmitted,
+  onMainMenu,
   sound,
 }: GameProps) {
-  const [difficulty, setDifficulty] = useState<Difficulty>(() =>
-    findDifficultyById(initialDifficultyId),
-  );
-  const [state, setState] = useState<GameState>(() => createInitialState(difficulty, random));
+  const [state, setState] = useState<GameState>(() => createInitialState(difficultyId, random));
   const [showSolution, setShowSolution] = useState(false);
+
+  const difficulty = findDifficultyById(difficultyId);
 
   const optimalSolution = useMemo(() => {
     if (state.status !== 'solved') {
@@ -98,22 +101,17 @@ export function Game({
 
   const startNewGame = useCallback(() => {
     setShowSolution(false);
-    setState(createInitialState(difficulty, random));
-  }, [difficulty, random]);
-
-  const handleDifficultyChange = useCallback(
-    (id: DifficultyId) => {
-      const nextDifficulty = findDifficultyById(id);
-      setDifficulty(nextDifficulty);
-      setShowSolution(false);
-      setState(createInitialState(nextDifficulty, random));
-    },
-    [random],
-  );
+    setState(createInitialState(difficultyId, random));
+  }, [difficultyId, random]);
 
   const handleToggleSolution = useCallback(() => {
     setShowSolution((previous) => !previous);
   }, []);
+
+  useEffect(() => {
+    setShowSolution(false);
+    setState(createInitialState(difficultyId, random));
+  }, [difficultyId, random]);
 
   useEffect(() => {
     const startTime = state.startTime;
@@ -140,14 +138,11 @@ export function Game({
         moves={state.moves}
         elapsedMs={state.elapsedMs}
         isSolved={state.status === 'solved'}
-        currentDifficultyId={difficulty.id}
         boardSize={difficulty.boardSize}
         optimalSolution={optimalSolution}
         showSolution={showSolution}
         onToggleSolution={handleToggleSolution}
-        onDifficultyChange={handleDifficultyChange}
         onNewGame={startNewGame}
-        onScoreSubmitted={onScoreSubmitted}
       />
       <Board
         size={difficulty.boardSize}
@@ -156,6 +151,22 @@ export function Game({
         solutionCells={showSolution ? optimalSolution?.cells : undefined}
         onPress={handlePress}
       />
+
+      {state.status === 'solved' && (
+        <WinSequence
+          submission={{
+            boardSize: difficulty.boardSize,
+            moves: state.moves,
+            elapsedMs: state.elapsedMs,
+          }}
+          onScoreSubmitted={() => {
+            onScoreSubmitted?.();
+          }}
+          onCancel={() => {
+            onMainMenu?.();
+          }}
+        />
+      )}
     </div>
   );
 }

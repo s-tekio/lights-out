@@ -1,45 +1,72 @@
-import { useRef, useState } from 'react';
-import { Game } from './components/Game';
-import { HelpDialog } from './components/HelpDialog';
-import { Leaderboard } from './components/Leaderboard';
+import { useReducer, useState } from 'react';
+import { DifficultyScreen } from './components/DifficultyScreen';
+import { GameScreen } from './components/GameScreen';
+import { LeaderboardScreen } from './components/LeaderboardScreen';
+import { SettingsScreen } from './components/SettingsScreen';
+import { Starfield } from './components/Starfield';
+import { TitleScreen } from './components/TitleScreen';
 import { useSound } from './sound/useSound';
+import { viewReducer } from './viewState';
 import './styles.css';
 
 export default function App() {
+  const [view, dispatch] = useReducer(viewReducer, { kind: 'title' });
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const helpTriggerRef = useRef<HTMLButtonElement>(null);
-  const { engine } = useSound();
+  const { engine, musicEnabled, effectsEnabled, toggleMusic, toggleEffects } = useSound();
+
+  const showBack =
+    view.kind === 'difficulty' || view.kind === 'leaderboard' || view.kind === 'settings';
 
   return (
     <div className="app">
-      <header className="app__header">
-        <h1>Lights Out</h1>
+      <Starfield />
+      {showBack && (
         <button
-          ref={helpTriggerRef}
           type="button"
-          aria-haspopup="dialog"
-          aria-expanded={isHelpOpen}
-          aria-controls={isHelpOpen ? 'help-dialog' : undefined}
-          onClick={() => setIsHelpOpen(true)}
+          className="back-button"
+          onClick={() => dispatch({ type: 'goToTitle' })}
         >
-          Help
+          Back
         </button>
-      </header>
+      )}
       <main className="app__main">
-        <Game
-          sound={engine}
-          onScoreSubmitted={() => setLeaderboardRefreshKey((previous) => previous + 1)}
-        />
+        {view.kind === 'title' && (
+          <TitleScreen
+            onNewGame={() => dispatch({ type: 'goToDifficulty' })}
+            onLeaderboard={() => dispatch({ type: 'goToLeaderboard' })}
+            onSettings={() => dispatch({ type: 'goToSettings' })}
+          />
+        )}
+        {view.kind === 'difficulty' && (
+          <DifficultyScreen
+            onSelect={(difficultyId) => dispatch({ type: 'startGame', difficultyId })}
+          />
+        )}
+        {view.kind === 'game' && (
+          <GameScreen
+            difficultyId={view.difficultyId}
+            sound={engine}
+            musicEnabled={musicEnabled}
+            effectsEnabled={effectsEnabled}
+            onToggleMusic={toggleMusic}
+            onToggleEffects={toggleEffects}
+            onMainMenu={() => dispatch({ type: 'goToTitle' })}
+            onScoreSubmitted={() => {
+              setLeaderboardRefreshKey((previous) => previous + 1);
+              dispatch({ type: 'goToLeaderboard' });
+            }}
+          />
+        )}
+        {view.kind === 'leaderboard' && <LeaderboardScreen refreshKey={leaderboardRefreshKey} />}
+        {view.kind === 'settings' && (
+          <SettingsScreen
+            musicEnabled={musicEnabled}
+            effectsEnabled={effectsEnabled}
+            onToggleMusic={toggleMusic}
+            onToggleEffects={toggleEffects}
+          />
+        )}
       </main>
-      <aside className="app__leaderboard" aria-label="Leaderboard">
-        <Leaderboard refreshKey={leaderboardRefreshKey} />
-      </aside>
-      <HelpDialog
-        isOpen={isHelpOpen}
-        onClose={() => setIsHelpOpen(false)}
-        triggerRef={helpTriggerRef}
-      />
     </div>
   );
 }

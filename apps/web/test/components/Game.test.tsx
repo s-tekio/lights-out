@@ -19,18 +19,28 @@ function getCell(index: number, size: number): HTMLElement {
   return screen.getByRole('button', { name: cellLabel(index, size) });
 }
 
+const originalMatchMedia: typeof window.matchMedia = (...args) => window.matchMedia(...args);
+
 describe('Game', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as typeof window.matchMedia;
   });
 
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    window.matchMedia = originalMatchMedia;
   });
 
   it('pressing a cell changes the lit state of that cell and its neighbours', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -60,8 +70,8 @@ describe('Game', () => {
     );
   });
 
-  it('solving the board shows the result and the optimal count', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+  it('does not show the name form before the win-sequence delay has elapsed', () => {
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -76,12 +86,41 @@ describe('Game', () => {
     }
 
     expect(screen.getByText(/Solved in/i)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /Player name/i })).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(999);
+    });
+
+    expect(screen.queryByRole('textbox', { name: /Player name/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the result, optimal count and name form after the win-sequence delay', () => {
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
+
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(screen.getByText(/Solved in/i)).toBeInTheDocument();
     expect(screen.getByText(/Optimal:/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Player name/i)).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /Player name/i })).toBeInTheDocument();
   });
 
   it('does not start the timer before the first press', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     expect(screen.getByText('Time: 0:00')).toBeInTheDocument();
 
@@ -93,7 +132,7 @@ describe('Game', () => {
   });
 
   it('starts the timer after the first press', () => {
-    render(<Game initialDifficultyId="normal" random={constantRandom(0)} />);
+    render(<Game difficultyId="normal" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('normal');
     const { presses } = createSolvableBoard(
@@ -114,7 +153,7 @@ describe('Game', () => {
   });
 
   it('starting a new game resets the move count and timer', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -140,7 +179,7 @@ describe('Game', () => {
   });
 
   it('ignores presses after the board is already solved', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -172,7 +211,7 @@ describe('Game', () => {
       setEffectsEnabled: vi.fn(),
     } satisfies SoundEngine;
 
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} sound={sound} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} sound={sound} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -197,19 +236,8 @@ describe('Game', () => {
     expect(sound.press).toHaveBeenCalledTimes(solvedPressCount);
   });
 
-  it('changing difficulty starts a new board of the selected size', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
-
-    fireEvent.change(screen.getByLabelText(/Difficulty/i), {
-      target: { value: 'hard' },
-    });
-
-    expect(screen.getByText('Moves: 0')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Row 1, Column 7/i)).toBeInTheDocument();
-  });
-
   it('toggles the optimal sequence when the reveal button is pressed', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -238,7 +266,7 @@ describe('Game', () => {
   });
 
   it('hides the solution again after starting a new game', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
     const difficulty = findDifficultyById('easy');
     const { presses } = createSolvableBoard(
@@ -256,32 +284,6 @@ describe('Game', () => {
     expect(screen.getByRole('list')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'New game' }));
-
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Show optimal sequence/i)).not.toBeInTheDocument();
-  });
-
-  it('hides the solution again after changing difficulty', () => {
-    render(<Game initialDifficultyId="easy" random={constantRandom(0)} />);
-
-    const difficulty = findDifficultyById('easy');
-    const { presses } = createSolvableBoard(
-      difficulty.boardSize,
-      difficulty.scrambleDepth,
-      constantRandom(0),
-      difficulty.minPresses,
-    );
-
-    for (const index of presses) {
-      fireEvent.click(getCell(index, difficulty.boardSize));
-    }
-
-    fireEvent.click(screen.getByRole('button', { name: /Show optimal sequence/i }));
-    expect(screen.getByRole('list')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText(/Difficulty/i), {
-      target: { value: 'normal' },
-    });
 
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
     expect(screen.queryByText(/Show optimal sequence/i)).not.toBeInTheDocument();

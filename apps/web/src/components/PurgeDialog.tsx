@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getScoresErrorMessage, type PurgeResponse } from '../api/scores';
+import { FieldsetField } from './FieldsetField';
 import { Modal } from './Modal';
 
 type PurgeDialogProps = {
@@ -80,10 +81,15 @@ export function PurgeDialog({ isOpen, onClose, triggerRef, onPurge, onSuccess }:
         This permanently deletes <strong>every</strong> score from the leaderboard. This action
         cannot be undone.
       </p>
-      <div className="purge-dialog__field">
-        <label htmlFor="purge-confirm-input">
-          Type <code>DELETE</code> to confirm
-        </label>
+      <FieldsetField
+        legend={
+          <>
+            Type <code>DELETE</code> to confirm
+          </>
+        }
+        inputId="purge-confirm-input"
+        describedBy={describedBy}
+      >
         <input
           id="purge-confirm-input"
           type="text"
@@ -92,15 +98,13 @@ export function PurgeDialog({ isOpen, onClose, triggerRef, onPurge, onSuccess }:
           disabled={isPending}
           autoComplete="off"
           aria-invalid={showsConfirmationHint}
-          aria-describedby={describedBy}
         />
-        {showsConfirmationHint && (
-          <p id="purge-confirm-hint" className="purge-dialog__hint">
-            It must be exactly <code>DELETE</code>: capitals only, with no extra characters or
-            spaces.
-          </p>
-        )}
-      </div>
+      </FieldsetField>
+      {showsConfirmationHint && (
+        <p id="purge-confirm-hint" className="purge-dialog__hint">
+          It must be exactly <code>DELETE</code>: capitals only, with no extra characters or spaces.
+        </p>
+      )}
       {error !== null && (
         <p id="purge-dialog-error" className="purge-dialog__error" role="alert">
           {getScoresErrorMessage(error)}
