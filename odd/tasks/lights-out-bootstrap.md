@@ -51,7 +51,10 @@ real AWS deployment are explicitly **out of scope** here and tracked as the next
 - [x] **T5 — Lint and format enforcement.** Root ESLint flat config with type-aware rules,
   Prettier check, and pre-commit hooks (husky + lint-staged).
 - [x] **T6 — CI pipeline and coverage gate.** GitHub Actions running lint, typecheck, test with
-  coverage thresholds, build, secret scanning and dependency audit; Dependabot configuration.
+  coverage thresholds, build, secret scanning and dependency audit. Dependabot was configured here as
+  well and **removed later at the user's request**: it is not part of the course, and the three pull
+  requests it opened were major version bumps that could not pass, for the reason recorded in the T6
+  fixes above.
 - [x] **T7 — Repository governance docs.** Added `CONTRIBUTING.md`, `SECURITY.md` and `LICENSE`,
   then removed all three at the user's request. This is a practice project; the governance
   overhead is not warranted. The standards rules they supported (secrets never committed, no
