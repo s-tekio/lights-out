@@ -5,10 +5,29 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     commit-message:
       prefix: chore
       include: scope
+    groups:
+      # Routine bumps arrive as one pull request instead of one per package. These
+      # are the updates that can actually be reviewed and merged.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # vitest bundles its own copy of Vite, so the two have to move together. A
+      # major bump of either one alone leaves two Vite majors in the tree and the
+      # build fails, which is a property of the dependency rather than a problem
+      # with this repository. Proposing it produces a pull request that can only be
+      # closed, so it is not proposed.
+      - dependency-name: vite
+        update-types:
+          - version-update:semver-major
+      - dependency-name: vitest
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
