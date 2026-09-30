@@ -147,13 +147,15 @@ export function Game({
         isMenuOpen={isMenuOpen}
         onOpenMenu={onOpenMenu}
       />
-      <Board
-        size={difficulty.boardSize}
-        board={state.board}
-        disabled={state.status === 'solved'}
-        solutionCells={showSolution ? optimalSolution?.cells : undefined}
-        onPress={handlePress}
-      />
+      <div className="board-bezel">
+        <Board
+          size={difficulty.boardSize}
+          board={state.board}
+          disabled={state.status === 'solved'}
+          solutionCells={showSolution ? optimalSolution?.cells : undefined}
+          onPress={handlePress}
+        />
+      </div>
 
       {state.status === 'solved' && (
         <WinSequence

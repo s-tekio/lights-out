@@ -20,6 +20,7 @@ export default function App() {
   return (
     <div className="app">
       <Starfield />
+      <div className="scanlines" aria-hidden="true" />
       {showBack && (
         <button
           type="button"

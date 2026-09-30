@@ -28,18 +28,20 @@ export function WinSequence({ submission, onScoreSubmitted, onCancel }: WinSeque
     <>
       <Fireworks />
       <div className="win-sequence">
-        <h1 className="game-title" data-text="CONGRATULATIONS!">
-          CONGRATULATIONS!
-        </h1>
-        {showForm && (
-          <div className="win-sequence__form">
-            <PlayerNameForm
-              submission={submission}
-              onSubmitted={onScoreSubmitted}
-              onCancel={onCancel}
-            />
-          </div>
-        )}
+        <div className="win-sequence__content">
+          <h1 className="game-title" data-text="CONGRATULATIONS!">
+            CONGRATULATIONS!
+          </h1>
+          {showForm && (
+            <div className="win-sequence__form">
+              <PlayerNameForm
+                submission={submission}
+                onSubmitted={onScoreSubmitted}
+                onCancel={onCancel}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

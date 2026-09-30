@@ -266,28 +266,30 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
       />
 
       {state.kind === 'ready' && (
-        <table className="leaderboard__table">
-          <thead>
-            <tr>
-              {sortableHeader('playerName', 'Player')}
-              <th scope="col">Level</th>
-              <th scope="col">Moves</th>
-              {sortableHeader('elapsedMs', 'Time')}
-              {sortableHeader('points', 'Points')}
-            </tr>
-          </thead>
-          <tbody>
-            {state.items.map((score) => (
-              <tr key={score.id}>
-                <td>{score.playerName}</td>
-                <td>{formatBoardSizeLabel(score.boardSize)}</td>
-                <td>{score.moves}</td>
-                <td>{formatElapsed(score.elapsedMs)}</td>
-                <td>{score.points}</td>
+        <div className="leaderboard__scroll">
+          <table className="leaderboard__table">
+            <thead>
+              <tr>
+                {sortableHeader('playerName', 'Player')}
+                <th scope="col">Level</th>
+                <th scope="col">Moves</th>
+                {sortableHeader('elapsedMs', 'Time')}
+                {sortableHeader('points', 'Points')}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {state.items.map((score) => (
+                <tr key={score.id}>
+                  <td>{score.playerName}</td>
+                  <td>{formatBoardSizeLabel(score.boardSize)}</td>
+                  <td>{score.moves}</td>
+                  <td>{formatElapsed(score.elapsedMs)}</td>
+                  <td>{score.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

@@ -8,6 +8,7 @@
   --color-accent-highlight: #b8f4ff;
   --color-lit: #facc15;
   --color-unlit: #12263a;
+  --color-button-shadow: #001525;
   --radius: 0;
   --gap: 0.75rem;
   --font-display:
@@ -29,6 +30,7 @@ body {
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app {
@@ -40,12 +42,18 @@ body {
   margin: 0 auto;
   padding: 1rem;
   min-height: 100vh;
+  min-height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
 }
 
 .app__main {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  min-width: 0;
 }
 
 /* Space backdrop */
@@ -81,6 +89,23 @@ body {
   }
 }
 
+/* Faint cabinet scanlines. Kept static and at very low opacity because this
+   is the effect most likely to ruin contrast. */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000;
+  background: repeating-linear-gradient(
+    0deg,
+    rgb(0 0 0 / 0.06) 0px,
+    rgb(0 0 0 / 0.06) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.15;
+}
+
 /* Navigation */
 .back-button {
   align-self: flex-start;
@@ -99,34 +124,43 @@ body {
 }
 
 /* Title treatment
-   Technique: the element carries the electric-blue fill and a thin white stroke;
-   paint-order keeps the stroke from eating the fill. The ::before pseudo-
-   element carries the same text with a transparent fill and a thicker white
-   stroke, scaled slightly larger, to create the second ring with a real gap.
-   Degradation: browsers that do not support -webkit-text-stroke lose the white
-   rings but keep the electric-blue text. The game remains playable and readable. */
+   Technique: a metal plate built from a vertical blue gradient, a bevel made
+   of offset light/dark text shadows, and a hard extrusion of stacked dark
+   offsets. The thin dark outline keeps the letters separate from the starfield.
+   Degradation: the solid electric-blue colour is the default; browsers that
+   support background-clip:text get the gradient fill, and browsers that do not
+   keep the solid colour instead of becoming invisible. */
 .game-title {
   font-family: var(--font-display);
   font-size: clamp(3rem, 12vw, 7rem);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--color-accent-strong);
-  -webkit-text-stroke: 2px #ffffff;
-  paint-order: stroke fill;
-  position: relative;
-  margin: 0;
   line-height: 1;
+  margin: 0;
+  color: var(--color-accent-strong);
+  text-shadow:
+    /* thin dark outline */
+    0 0 0.04em #000510,
+    /* light top-left bevel */ -0.03em -0.03em 0 var(--color-accent-highlight),
+    /* dark bottom-right bevel */ 0.03em 0.03em 0 #003060,
+    /* hard extrusion layers */ 0 0.05em 0 #002040,
+    0 0.1em 0 #001525,
+    0 0.15em 0 #000a10;
 }
 
-.game-title::before {
-  content: attr(data-text);
-  position: absolute;
-  inset: 0;
-  color: transparent;
-  -webkit-text-stroke: 6px #ffffff;
-  paint-order: stroke fill;
-  z-index: -1;
-  transform: scale(1.05);
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .game-title {
+    color: transparent;
+    background-image: linear-gradient(
+      180deg,
+      var(--color-accent-highlight) 0%,
+      var(--color-accent) 30%,
+      var(--color-accent-strong) 55%,
+      #054080 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
 }
 
 /* Screen layouts */
@@ -141,11 +175,20 @@ body {
   justify-content: center;
   align-items: center;
   text-align: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.title-screen,
+.difficulty-screen,
+.settings-screen {
+  overflow-y: auto;
 }
 
 .leaderboard-screen {
   justify-content: flex-start;
   padding-top: 1rem;
+  overflow: hidden;
 }
 
 .screen-heading {
@@ -179,6 +222,7 @@ body {
   text-align: center;
   width: 100%;
   max-width: 18rem;
+  overflow-wrap: anywhere;
 }
 
 .menu__entry:hover,
@@ -257,6 +301,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
+  min-height: 0;
+  min-width: 0;
 }
 
 .game-menu {
@@ -272,15 +318,22 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--gap);
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
+/* Status panel: marquee-style header with segment-display metrics. */
 .status {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background-color: var(--color-surface);
   padding: 1rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius);
+  box-shadow:
+    inset 0 0 0.5rem rgb(0 0 0 / 50%),
+    0 0 0.75rem rgb(46 230 255 / 12%);
 }
 
 .status__row {
@@ -292,7 +345,18 @@ body {
 
 .status__metric {
   margin: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--color-accent-highlight);
+  background-color: #02060a;
+  border: 1px solid #1a3a4a;
+  box-shadow: inset 0 0.125rem 0.375rem rgb(0 0 0 / 60%);
+  text-shadow: 0 0 0.5rem rgb(46 230 255 / 35%);
+  overflow-wrap: anywhere;
 }
 
 .status__menu-button {
@@ -337,13 +401,34 @@ body {
   margin: 0.25rem 0 0;
   color: #f87171;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+/* Board and bezel. The bezel frames the board like a cabinet screen. The
+   wrapper receives the remaining flex height and the board sizes against it. */
+.board-bezel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  background-color: #020810;
+  border: 0.25rem solid #0a2338;
+  border-radius: var(--radius);
+  box-shadow:
+    inset 0 0 1rem rgb(0 0 0 / 70%),
+    0 0 0 0.125rem #0d3a5c,
+    0 0 0 0.375rem #061826;
 }
 
 .board {
   display: grid;
   gap: 0.5rem;
   width: 100%;
-  max-width: 24rem;
+  max-height: 100%;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
   margin: 0 auto;
 }
 
@@ -408,6 +493,7 @@ body {
   width: 100%;
   max-width: 32rem;
   max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
   padding: 1.25rem;
   border-radius: var(--radius);
   border: 1px solid var(--color-accent);
@@ -482,6 +568,7 @@ body {
   margin: 0;
   color: var(--color-muted);
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 
 .purge-dialog__field input[aria-invalid='true'] {
@@ -511,6 +598,7 @@ body {
 
 .purge-dialog__error {
   color: #f87171;
+  overflow-wrap: anywhere;
 }
 
 /* Shared bordered-field shape
@@ -552,6 +640,7 @@ body {
   margin: 0.5rem 0 0;
   color: #f87171;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 
 /* Win sequence */
@@ -575,12 +664,22 @@ body {
   inset: 0;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  pointer-events: none;
+  overflow-y: auto;
   z-index: 2;
+}
+
+.win-sequence__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 24rem;
+  pointer-events: none;
 }
 
 .win-sequence .game-title {
@@ -589,7 +688,6 @@ body {
 
 .win-sequence__form {
   width: 100%;
-  max-width: 24rem;
   pointer-events: auto;
 }
 
@@ -630,6 +728,7 @@ body {
   margin: 0;
   color: #f87171;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 }
 
 /* Leaderboard */
@@ -638,6 +737,8 @@ body {
   flex-direction: column;
   gap: 0.75rem;
   width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
 }
 
 .leaderboard__header {
@@ -646,6 +747,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .leaderboard__header h2 {
@@ -708,10 +810,17 @@ body {
   flex: 0 0 auto;
 }
 
+.leaderboard__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-accent);
+  background-color: var(--color-surface);
+}
+
 .leaderboard__table {
   width: 100%;
   border-collapse: collapse;
-  border: 1px solid var(--color-accent);
   font-variant-numeric: tabular-nums;
   background-color: var(--color-surface);
 }
@@ -721,6 +830,7 @@ body {
   padding: 0.625rem 0.5rem;
   text-align: left;
   border-bottom: 1px solid var(--color-accent);
+  overflow-wrap: anywhere;
 }
 
 .leaderboard__table thead {
@@ -773,6 +883,7 @@ body {
 
 .leaderboard__error {
   color: #f87171;
+  overflow-wrap: anywhere;
 }
 
 .leaderboard__empty,
@@ -782,6 +893,79 @@ body {
 
 .leaderboard__success {
   color: var(--color-accent);
+}
+
+/* Raised arcade buttons with a hard offset shadow and a pressed :active state.
+   The press is feedback, so the visual change stays under reduced motion; only
+   the transition animation is removed. */
+.menu__entry,
+.game-menu__entry,
+.toggle,
+.back-button,
+.status__menu-button,
+.leaderboard__controls button,
+.player-name-form__actions button,
+.dialog button {
+  box-shadow: 0 0.25rem 0 var(--color-button-shadow);
+  transition:
+    transform 0.05s ease,
+    box-shadow 0.05s ease,
+    background-color 0.1s ease,
+    border-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.menu__entry:active,
+.game-menu__entry:active,
+.toggle:active,
+.back-button:active,
+.status__menu-button:active,
+.leaderboard__controls button:active,
+.player-name-form__actions button:active,
+.dialog button:active {
+  transform: translateY(0.25rem);
+  box-shadow: 0 0 0 var(--color-button-shadow);
+}
+
+.solution-reveal__toggle {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 0.25rem 0 var(--color-button-shadow);
+  transition:
+    transform 0.05s ease,
+    box-shadow 0.05s ease,
+    background-color 0.1s ease,
+    border-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.solution-reveal__toggle:hover {
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.solution-reveal__toggle:active {
+  transform: translateY(0.25rem);
+  box-shadow: 0 0 0 var(--color-button-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu__entry,
+  .game-menu__entry,
+  .toggle,
+  .back-button,
+  .status__menu-button,
+  .leaderboard__controls button,
+  .player-name-form__actions button,
+  .solution-reveal__toggle,
+  .dialog button {
+    transition: none;
+  }
 }
 
 @media (max-width: 24rem) {
