@@ -97,6 +97,13 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
+      # The .tflint.hcl enables the aws ruleset, which is a plugin rather than a
+      # built-in and has to be downloaded before linting. Without this step tflint
+      # exits 1 with the message "Plugin \"aws\" not found. Did you run
+      # \"tflint --init\"?", which reads like a lint finding but is not one.
+      - name: tflint init
+        run: tflint --init
+
       - name: tflint
         run: tflint --recursive --format compact
 
