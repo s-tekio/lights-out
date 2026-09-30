@@ -131,6 +131,16 @@ jobs:
             exit 1
           fi
 
+          # Present is not the same as accepted. The lab credentials expire, and an
+          # expired session token passes every check above and then fails inside
+          # terraform init with a message that does not name the cause. Asking STS
+          # turns that into one sentence that does.
+          if ! aws sts get-caller-identity > /dev/null 2>&1; then
+            echo "::error::The AWS credentials are present but were not accepted, which usually means the lab session token has expired."
+            echo "Start a new lab session, update AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN with the new values, then re-run the job."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v5
 
