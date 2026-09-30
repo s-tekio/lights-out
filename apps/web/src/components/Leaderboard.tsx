@@ -169,26 +169,65 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
               </option>
             ))}
           </select>
+          {/* The title attribute gives mouse users a tooltip, but it does not
+              produce a tooltip on touch devices. The icon shapes therefore need
+              to be the conventional refresh and trash-can symbols. */}
           <button
             type="button"
+            className="leaderboard__icon-button"
+            aria-label="Refresh"
+            title="Refresh"
             onClick={() => {
               setSuccessMessage(null);
               void load();
             }}
             disabled={state.kind === 'loading'}
           >
-            Refresh
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 12a9 9 0 1 1-2.8-6.5" />
+              <path d="M21 3v5h-5" />
+            </svg>
           </button>
           <button
             ref={purgeTriggerRef}
             type="button"
-            className="leaderboard__clear"
+            className="leaderboard__icon-button leaderboard__clear"
+            aria-label="Clear leaderboard"
+            title="Clear leaderboard"
             aria-haspopup="dialog"
             aria-expanded={isPurgeOpen}
             aria-controls={isPurgeOpen ? 'purge-dialog' : undefined}
             onClick={() => setIsPurgeOpen(true)}
           >
-            Clear leaderboard
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+              <path d="M10 11v6" />
+              <path d="M14 11v6" />
+            </svg>
           </button>
         </div>
       </div>

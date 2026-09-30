@@ -102,8 +102,12 @@ body {
 
 .leaderboard__controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+  /* Without flex-wrap the label, select and two buttons are forced onto a
+     single row that can become wider than the viewport, causing horizontal
+     overflow and sideways scrolling on narrow screens. */
 }
 
 .leaderboard__controls label {
@@ -137,6 +141,19 @@ body {
 .leaderboard__controls button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.leaderboard__controls button.leaderboard__icon-button {
+  /* Square, 44 CSS pixel touch target for reliable thumb activation on phones. */
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .leaderboard__table {

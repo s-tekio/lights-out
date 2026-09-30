@@ -333,6 +333,23 @@ describe('Leaderboard', () => {
     expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
   });
 
+  it('exposes an accessible name and title on each icon-only button', async () => {
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
+    render(<Leaderboard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument(),
+    );
+
+    const refreshButton = screen.getByRole('button', { name: /Refresh/i });
+    expect(refreshButton).toHaveAttribute('aria-label', 'Refresh');
+    expect(refreshButton).toHaveAttribute('title', 'Refresh');
+
+    const clearButton = screen.getByRole('button', { name: /Clear leaderboard/i });
+    expect(clearButton).toHaveAttribute('aria-label', 'Clear leaderboard');
+    expect(clearButton).toHaveAttribute('title', 'Clear leaderboard');
+  });
+
   it('opens the purge dialog when Clear leaderboard is clicked', async () => {
     mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
     render(<Leaderboard />);
