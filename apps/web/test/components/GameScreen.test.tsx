@@ -38,14 +38,14 @@ describe('GameScreen', () => {
     vi.useRealTimers();
   });
 
-  it('renders the board and the menu button', () => {
+  it('renders the board and the menu button in the status row', () => {
     renderGameScreen();
 
     expect(screen.getByRole('group', { name: /Lights Out board/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Open game menu/i })).toBeInTheDocument();
   });
 
-  it('opens the in-game menu from the top-right button', () => {
+  it('opens the in-game menu from the status row button', () => {
     renderGameScreen();
 
     fireEvent.click(screen.getByRole('button', { name: /Open game menu/i }));

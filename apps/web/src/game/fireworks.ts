@@ -1,4 +1,4 @@
-export const FIREWORKS_COLORS = ['#c084fc', '#ffffff', '#facc15'] as const;
+export const FIREWORKS_COLORS = ['#2ee6ff', '#ffffff', '#facc15'] as const;
 
 export type ParticleColor = (typeof FIREWORKS_COLORS)[number];
 

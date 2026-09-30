@@ -27,6 +27,9 @@ type GameProps = {
   readonly onScoreSubmitted?: () => void;
   readonly onMainMenu?: () => void;
   readonly sound?: SoundEngine;
+  readonly menuTriggerRef?: React.RefObject<HTMLButtonElement | null>;
+  readonly isMenuOpen?: boolean;
+  readonly onOpenMenu?: () => void;
 };
 
 function createInitialState(difficultyId: DifficultyId, random: () => number): GameState {
@@ -55,6 +58,9 @@ export function Game({
   onScoreSubmitted,
   onMainMenu,
   sound,
+  menuTriggerRef,
+  isMenuOpen,
+  onOpenMenu,
 }: GameProps) {
   const [state, setState] = useState<GameState>(() => createInitialState(difficultyId, random));
   const [showSolution, setShowSolution] = useState(false);
@@ -82,7 +88,7 @@ export function Game({
         const solved = isSolved(nextBoard);
 
         if (sound !== undefined) {
-          sound.press(index);
+          sound.press();
         }
 
         return {
@@ -98,11 +104,6 @@ export function Game({
     },
     [sound],
   );
-
-  const startNewGame = useCallback(() => {
-    setShowSolution(false);
-    setState(createInitialState(difficultyId, random));
-  }, [difficultyId, random]);
 
   const handleToggleSolution = useCallback(() => {
     setShowSolution((previous) => !previous);
@@ -142,7 +143,9 @@ export function Game({
         optimalSolution={optimalSolution}
         showSolution={showSolution}
         onToggleSolution={handleToggleSolution}
-        onNewGame={startNewGame}
+        menuTriggerRef={menuTriggerRef}
+        isMenuOpen={isMenuOpen}
+        onOpenMenu={onOpenMenu}
       />
       <Board
         size={difficulty.boardSize}

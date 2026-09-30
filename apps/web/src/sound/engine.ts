@@ -4,7 +4,7 @@ export type SoundEngine = {
   readonly isSupported: boolean;
   start(): void;
   stop(): void;
-  press(cellIndex: number): void;
+  press(): void;
   dispose(): void;
   setMusicEnabled(enabled: boolean): void;
   setEffectsEnabled(enabled: boolean): void;
@@ -162,7 +162,7 @@ function createWebAudioEngine(createContext: AudioContextFactory = getAudioConte
       }
     },
 
-    press(cellIndex: number) {
+    press() {
       if (!effectsEnabled) {
         return;
       }
@@ -179,9 +179,7 @@ function createWebAudioEngine(createContext: AudioContextFactory = getAudioConte
       const oscillator = activeContext.createOscillator();
       const gainNode = activeContext.createGain();
 
-      // Step the pitch by cell so rapid pressing does not repeat one tone.
-      const baseFrequency = 523.25; // C5
-      const frequency = baseFrequency + cellIndex * 25;
+      const frequency = 523.25; // C5
       const duration = 0.08;
 
       oscillator.type = 'square';

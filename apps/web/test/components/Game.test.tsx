@@ -152,32 +152,6 @@ describe('Game', () => {
     expect(screen.getByText(/Time: 0:0[12]/)).toBeInTheDocument();
   });
 
-  it('starting a new game resets the move count and timer', () => {
-    render(<Game difficultyId="easy" random={constantRandom(0)} />);
-
-    const difficulty = findDifficultyById('easy');
-    const { presses } = createSolvableBoard(
-      difficulty.boardSize,
-      difficulty.scrambleDepth,
-      constantRandom(0),
-      difficulty.minPresses,
-    );
-    const firstCell = getCell(presses[0] ?? 0, difficulty.boardSize);
-
-    fireEvent.click(firstCell);
-
-    expect(screen.getByText('Moves: 1')).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'New game' }));
-
-    expect(screen.getByText('Moves: 0')).toBeInTheDocument();
-    expect(screen.getByText('Time: 0:00')).toBeInTheDocument();
-  });
-
   it('ignores presses after the board is already solved', () => {
     render(<Game difficultyId="easy" random={constantRandom(0)} />);
 
@@ -224,7 +198,6 @@ describe('Game', () => {
     const firstIndex = presses[0] ?? 0;
     fireEvent.click(getCell(firstIndex, difficulty.boardSize));
     expect(sound.press).toHaveBeenCalledTimes(1);
-    expect(sound.press).toHaveBeenLastCalledWith(firstIndex);
 
     for (const index of presses.slice(1)) {
       fireEvent.click(getCell(index, difficulty.boardSize));
@@ -263,29 +236,5 @@ describe('Game', () => {
 
     expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
-  });
-
-  it('hides the solution again after starting a new game', () => {
-    render(<Game difficultyId="easy" random={constantRandom(0)} />);
-
-    const difficulty = findDifficultyById('easy');
-    const { presses } = createSolvableBoard(
-      difficulty.boardSize,
-      difficulty.scrambleDepth,
-      constantRandom(0),
-      difficulty.minPresses,
-    );
-
-    for (const index of presses) {
-      fireEvent.click(getCell(index, difficulty.boardSize));
-    }
-
-    fireEvent.click(screen.getByRole('button', { name: /Show optimal sequence/i }));
-    expect(screen.getByRole('list')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'New game' }));
-
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Show optimal sequence/i)).not.toBeInTheDocument();
   });
 });

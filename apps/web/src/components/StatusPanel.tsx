@@ -9,7 +9,9 @@ type StatusPanelProps = {
   readonly optimalSolution?: OptimalSolution | null;
   readonly showSolution?: boolean;
   readonly onToggleSolution?: () => void;
-  readonly onNewGame: () => void;
+  readonly menuTriggerRef?: React.RefObject<HTMLButtonElement | null>;
+  readonly isMenuOpen?: boolean;
+  readonly onOpenMenu?: () => void;
 };
 
 function formatElapsed(ms: number): string {
@@ -28,16 +30,44 @@ export function StatusPanel({
   optimalSolution = null,
   showSolution = false,
   onToggleSolution,
-  onNewGame,
+  menuTriggerRef,
+  isMenuOpen,
+  onOpenMenu,
 }: StatusPanelProps) {
   return (
     <section className="status" aria-label="Game status">
       <div className="status__row">
         <p className="status__metric">Moves: {moves}</p>
         <p className="status__metric">Time: {formatElapsed(elapsedMs)}</p>
-        <button type="button" className="status__new-game" onClick={onNewGame}>
-          New game
-        </button>
+        {onOpenMenu !== undefined && (
+          <button
+            ref={menuTriggerRef}
+            type="button"
+            className="status__menu-button"
+            aria-label="Open game menu"
+            aria-haspopup="dialog"
+            aria-expanded={isMenuOpen}
+            aria-controls={isMenuOpen ? 'game-menu' : undefined}
+            onClick={onOpenMenu}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {isSolved && (

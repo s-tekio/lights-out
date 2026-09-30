@@ -147,7 +147,7 @@ describe('engine', () => {
     expect(engine.isSupported).toBe(false);
     expect(engine.start()).toBe(undefined);
     expect(engine.stop()).toBe(undefined);
-    expect(engine.press(0)).toBe(undefined);
+    expect(engine.press()).toBe(undefined);
     expect(engine.dispose()).toBe(undefined);
     expect(engine.setMusicEnabled(false)).toBe(undefined);
     expect(engine.setEffectsEnabled(false)).toBe(undefined);
@@ -214,22 +214,28 @@ describe('engine', () => {
       expect(fake.context.createOscillator.mock.calls.length).toBe(callsBeforeStop);
     });
 
-    it('press creates a square oscillator with a stepped frequency', () => {
+    it('press creates a square oscillator with the same fixed frequency every time', () => {
       engine.start();
-      engine.press(3);
+      engine.press();
 
-      const oscillator = fake.oscillators[fake.oscillators.length - 1];
-      expect(oscillator).toBeDefined();
-      if (oscillator === undefined) {
+      const firstOscillator = fake.oscillators[fake.oscillators.length - 1];
+      expect(firstOscillator).toBeDefined();
+      if (firstOscillator === undefined) {
         throw new Error('Expected an oscillator to be created');
       }
-      expect(oscillator.type).toBe('square');
-      expect(oscillator.frequency.value).toBeGreaterThan(500);
+      expect(firstOscillator.type).toBe('square');
+      expect(firstOscillator.frequency.value).toBeGreaterThan(500);
+
+      const firstFrequency = firstOscillator.frequency.value;
+
+      engine.press();
+      const secondOscillator = fake.oscillators[fake.oscillators.length - 1];
+      expect(secondOscillator?.frequency.value).toBe(firstFrequency);
     });
 
     it('press gain peaks at the configured value', () => {
       engine.start();
-      engine.press(0);
+      engine.press();
 
       const gain = fake.gains[fake.gains.length - 1];
       expect(gain).toBeDefined();
@@ -266,7 +272,7 @@ describe('engine', () => {
     it('skips press when effects are disabled', () => {
       engine.start();
       engine.setEffectsEnabled(false);
-      engine.press(0);
+      engine.press();
       expect(fake.context.createOscillator).not.toHaveBeenCalled();
     });
 
@@ -274,7 +280,7 @@ describe('engine', () => {
       engine.start();
       engine.setEffectsEnabled(false);
       engine.setEffectsEnabled(true);
-      engine.press(0);
+      engine.press();
       expect(fake.context.createOscillator).toHaveBeenCalled();
     });
 
@@ -304,7 +310,7 @@ describe('engine', () => {
     expect(silentSoundEngine.isSupported).toBe(false);
     expect(silentSoundEngine.start()).toBe(undefined);
     expect(silentSoundEngine.stop()).toBe(undefined);
-    expect(silentSoundEngine.press(0)).toBe(undefined);
+    expect(silentSoundEngine.press()).toBe(undefined);
     expect(silentSoundEngine.dispose()).toBe(undefined);
     expect(silentSoundEngine.setMusicEnabled(false)).toBe(undefined);
     expect(silentSoundEngine.setEffectsEnabled(false)).toBe(undefined);

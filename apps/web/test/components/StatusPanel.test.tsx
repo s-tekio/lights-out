@@ -4,14 +4,7 @@ import { StatusPanel } from '../../src/components/StatusPanel';
 
 function renderSolvedPanel(props: Partial<Parameters<typeof StatusPanel>[0]> = {}) {
   return render(
-    <StatusPanel
-      moves={7}
-      elapsedMs={42310}
-      isSolved={true}
-      boardSize={5}
-      onNewGame={() => undefined}
-      {...props}
-    />,
+    <StatusPanel moves={7} elapsedMs={42310} isSolved={true} boardSize={5} {...props} />,
   );
 }
 
@@ -65,14 +58,5 @@ describe('StatusPanel solution reveal', () => {
     expect(
       screen.queryByRole('button', { name: /Show optimal sequence/i }),
     ).not.toBeInTheDocument();
-  });
-
-  it('calls onNewGame when the new game button is pressed', () => {
-    const onNewGame = vi.fn();
-    renderSolvedPanel({ onNewGame });
-
-    fireEvent.click(screen.getByRole('button', { name: /New game/i }));
-
-    expect(onNewGame).toHaveBeenCalledTimes(1);
   });
 });

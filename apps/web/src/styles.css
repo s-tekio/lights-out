@@ -1,12 +1,13 @@
 :root {
-  --color-bg: #05010d;
-  --color-surface: #120a24;
+  --color-bg: #01060f;
+  --color-surface: #071320;
   --color-text: #ffffff;
-  --color-muted: #b8b0cc;
-  --color-accent: #c084fc;
-  --color-accent-strong: #a855f7;
+  --color-muted: #9fb4c7;
+  --color-accent: #2ee6ff;
+  --color-accent-strong: #0b8cff;
+  --color-accent-highlight: #b8f4ff;
   --color-lit: #facc15;
-  --color-unlit: #2a2140;
+  --color-unlit: #12263a;
   --radius: 0;
   --gap: 0.75rem;
   --font-display:
@@ -98,12 +99,12 @@ body {
 }
 
 /* Title treatment
-   Technique: the element carries the purple fill and a thin white stroke;
+   Technique: the element carries the electric-blue fill and a thin white stroke;
    paint-order keeps the stroke from eating the fill. The ::before pseudo-
    element carries the same text with a transparent fill and a thicker white
    stroke, scaled slightly larger, to create the second ring with a real gap.
    Degradation: browsers that do not support -webkit-text-stroke lose the white
-   rings but keep the purple text. The game remains playable and readable. */
+   rings but keep the electric-blue text. The game remains playable and readable. */
 .game-title {
   font-family: var(--font-display);
   font-size: clamp(3rem, 12vw, 7rem);
@@ -176,6 +177,8 @@ body {
   font-size: 1rem;
   cursor: pointer;
   text-align: center;
+  width: 100%;
+  max-width: 18rem;
 }
 
 .menu__entry:hover,
@@ -199,6 +202,12 @@ body {
 .game-menu__entry--emphasis:hover {
   background-color: var(--color-accent);
   border-color: var(--color-accent);
+}
+
+/* Inside the modal dialog the generic .dialog button rule would right-align
+   every menu entry. Restore centering so the in-game menu reads as a menu. */
+.dialog .game-menu__entry {
+  align-self: center;
 }
 
 /* Toggles */
@@ -244,40 +253,18 @@ body {
 
 /* Game screen */
 .game-screen {
-  position: relative;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: var(--gap);
-  padding-top: 2.5rem;
-}
-
-.game-screen__menu-button {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius);
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.game-screen__menu-button:focus-visible {
-  outline: 0.1875rem solid var(--color-accent);
-  outline-offset: 0.1875rem;
 }
 
 .game-menu {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.75rem;
+  width: 100%;
 }
 
 .game {
@@ -308,24 +295,24 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.status__new-game {
+.status__menu-button {
   margin-left: auto;
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius);
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--color-accent);
-  background-color: var(--color-accent);
-  color: var(--color-bg);
-  font: inherit;
-  font-weight: 600;
+  border-radius: var(--radius);
+  background-color: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
 }
 
-.status__new-game:hover {
-  background-color: var(--color-accent-strong);
-  border-color: var(--color-accent-strong);
-}
-
-.status__new-game:focus-visible {
+.status__menu-button:focus-visible {
   outline: 0.1875rem solid var(--color-accent);
   outline-offset: 0.1875rem;
 }
@@ -386,7 +373,7 @@ body {
    and aria-pressed carries the state for assistive technology. */
 .cell--unlit {
   background-color: var(--color-unlit);
-  border-color: #3f3654;
+  border-color: #1e3a55;
   box-shadow: inset 0 0.125rem 0.375rem rgb(0 0 0 / 45%);
 }
 
@@ -802,7 +789,7 @@ body {
     padding: 0.75rem;
   }
 
-  .status__new-game {
-    flex: 1 1 auto;
+  .status__menu-button {
+    flex: 0 0 auto;
   }
 }
