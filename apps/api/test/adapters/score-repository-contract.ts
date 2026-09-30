@@ -316,5 +316,51 @@ export function runScoreRepositoryContract({
       expect(await repo.rankOf(first)).toBe(1);
       expect(await repo.rankOf(second)).toBe(2);
     });
+
+    it('returns 0 when purging an empty repository', async () => {
+      const repo = createRepository();
+
+      const deleted = await repo.deleteAll();
+
+      expect(deleted).toBe(0);
+    });
+
+    it('purges every score and reports the exact count', async () => {
+      const repo = createRepository();
+      const first = makeScore({ playerName: 'A' });
+      const second = makeScore({ playerName: 'B' });
+      const third = makeScore({ playerName: 'C' });
+
+      await repo.save(first);
+      await repo.save(second);
+      await repo.save(third);
+
+      const deleted = await repo.deleteAll();
+      expect(deleted).toBe(3);
+
+      const top = await repo.listTop({
+        limit: 10,
+        boardSize: null,
+        sort: 'points',
+        order: 'desc',
+      });
+      expect(top).toEqual([]);
+    });
+
+    it('leaves the repository empty after a purge', async () => {
+      const repo = createRepository();
+      await repo.save(makeScore({ playerName: 'A' }));
+      await repo.save(makeScore({ playerName: 'B' }));
+
+      await repo.deleteAll();
+
+      const top = await repo.listTop({
+        limit: 10,
+        boardSize: null,
+        sort: 'points',
+        order: 'desc',
+      });
+      expect(top).toEqual([]);
+    });
   });
 }

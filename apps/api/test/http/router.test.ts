@@ -72,6 +72,15 @@ class InMemoryRepository implements ScoreRepository {
     const index = all.findIndex((item) => item.id === score.id);
     return index === -1 ? all.length + 1 : index + 1;
   }
+
+  deleteAll(): Promise<number> {
+    if (this.shouldFail) {
+      return Promise.reject(new Error('Injected repository failure.'));
+    }
+    const count = this.scores.length;
+    this.scores.length = 0;
+    return Promise.resolve(count);
+  }
 }
 
 function parseJson(response: ApiResponse): unknown {
@@ -187,16 +196,112 @@ describe('route', () => {
     expect(response.headers['Access-Control-Allow-Methods']).toContain('OPTIONS');
   });
 
-  it('returns 405 for known path with wrong method', async () => {
+  it('purges scores with a valid confirmation', async () => {
     const repo = new InMemoryRepository();
+    await repo.save({
+      id: '1',
+      playerName: 'Tekio',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 42_310,
+      points: 2_290,
+      createdAt: '2026-09-24T12:00:00.000Z',
+    });
+    await repo.save({
+      id: '2',
+      playerName: 'Other',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 42_310,
+      points: 2_000,
+      createdAt: '2026-09-24T12:00:00.000Z',
+    });
+
+    const response = await route(
+      { method: 'DELETE', path: '/api/scores', query: { confirm: 'DELETE' }, body: '' },
+      { repo },
+    );
+
+    expect(response.statusCode).toBe(200);
+    const body = parseJson(response) as { deleted: number };
+    expect(body.deleted).toBe(2);
+
+    const listResponse = await route(
+      { method: 'GET', path: '/api/scores', query: {}, body: '' },
+      { repo },
+    );
+    const listBody = parseJson(listResponse) as { items: Score[] };
+    expect(listBody.items).toEqual([]);
+  });
+
+  it('returns 400 and deletes nothing when the confirmation is missing', async () => {
+    const repo = new InMemoryRepository();
+    await repo.save({
+      id: '1',
+      playerName: 'Tekio',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 42_310,
+      points: 2_290,
+      createdAt: '2026-09-24T12:00:00.000Z',
+    });
+
     const response = await route(
       { method: 'DELETE', path: '/api/scores', query: {}, body: '' },
       { repo },
     );
 
-    expect(response.statusCode).toBe(405);
-    const body = parseJson(response) as { error: { code: string } };
-    expect(body.error.code).toBe('METHOD_NOT_ALLOWED');
+    expect(response.statusCode).toBe(400);
+    const body = parseJson(response) as {
+      error: { code: string; details: Array<{ field: string; message: string }> };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.details).toContainEqual({
+      field: 'confirm',
+      message: "must be exactly 'DELETE'",
+    });
+
+    const listResponse = await route(
+      { method: 'GET', path: '/api/scores', query: {}, body: '' },
+      { repo },
+    );
+    const listBody = parseJson(listResponse) as { items: Score[] };
+    expect(listBody.items.length).toBe(1);
+  });
+
+  it('returns 400 and deletes nothing when the confirmation is wrong', async () => {
+    const repo = new InMemoryRepository();
+    await repo.save({
+      id: '1',
+      playerName: 'Tekio',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 42_310,
+      points: 2_290,
+      createdAt: '2026-09-24T12:00:00.000Z',
+    });
+
+    const response = await route(
+      { method: 'DELETE', path: '/api/scores', query: { confirm: 'delete' }, body: '' },
+      { repo },
+    );
+
+    expect(response.statusCode).toBe(400);
+    const body = parseJson(response) as {
+      error: { code: string; details: Array<{ field: string; message: string }> };
+    };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+    expect(body.error.details).toContainEqual({
+      field: 'confirm',
+      message: "must be exactly 'DELETE'",
+    });
+
+    const listResponse = await route(
+      { method: 'GET', path: '/api/scores', query: {}, body: '' },
+      { repo },
+    );
+    const listBody = parseJson(listResponse) as { items: Score[] };
+    expect(listBody.items.length).toBe(1);
   });
 
   it('returns 500 with an injected failing repository', async () => {

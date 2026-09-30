@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseScoreQuery, parseScoreSubmission } from '../../src/domain/validation.js';
+import {
+  parsePurgeConfirmation,
+  parseScoreQuery,
+  parseScoreSubmission,
+} from '../../src/domain/validation.js';
 
 describe('parseScoreSubmission', () => {
   it('accepts a valid submission', () => {
@@ -518,5 +522,63 @@ describe('parseScoreQuery', () => {
     const fields = result.errors.map((error) => error.field);
     expect(fields).toContain('sort');
     expect(fields).toContain('order');
+  });
+});
+
+describe('parsePurgeConfirmation', () => {
+  it('accepts the exact value DELETE', () => {
+    const result = parsePurgeConfirmation({ confirm: 'DELETE' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ confirm: 'DELETE' });
+  });
+
+  it('rejects lowercase', () => {
+    const result = parsePurgeConfirmation({ confirm: 'delete' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
+  });
+
+  it('rejects mixed case', () => {
+    const result = parsePurgeConfirmation({ confirm: 'Delete' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
+  });
+
+  it('rejects a leading space', () => {
+    const result = parsePurgeConfirmation({ confirm: ' DELETE' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
+  });
+
+  it('rejects a trailing space', () => {
+    const result = parsePurgeConfirmation({ confirm: 'DELETE ' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
+  });
+
+  it('rejects an empty value', () => {
+    const result = parsePurgeConfirmation({ confirm: '' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
+  });
+
+  it('rejects an absent value', () => {
+    const result = parsePurgeConfirmation({});
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
+  });
+
+  it('rejects a wrong word', () => {
+    const result = parsePurgeConfirmation({ confirm: 'REMOVE' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.errors).toEqual([{ field: 'confirm', message: "must be exactly 'DELETE'" }]);
   });
 });

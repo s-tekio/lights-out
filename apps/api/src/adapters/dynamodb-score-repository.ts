@@ -1,5 +1,5 @@
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { BatchWriteCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import type { Score } from '../domain/score.js';
 import type { ListTopOptions, ScoreRepository } from '../ports/score-repository.js';
 import type { SortColumn, SortOrder } from '../domain/validation.js';
@@ -7,6 +7,10 @@ import type { SortColumn, SortOrder } from '../domain/validation.js';
 const MAX_POINTS = 999_999;
 const POINTS_PAD = 6;
 const TIME_PAD = 9;
+
+const BATCH_WRITE_SIZE = 25;
+const MAX_BATCH_RETRIES = 3;
+const BATCH_RETRY_DELAY_MS = 100;
 
 export const NATURAL_SORT_DIRECTION: Record<SortColumn, SortOrder> = {
   points: 'desc',
@@ -184,5 +188,72 @@ export class DynamoDbScoreRepository implements ScoreRepository {
     );
 
     return (result.Count ?? 0) + 1;
+  }
+
+  async deleteAll(): Promise<number> {
+    // A full table Scan is proportional to table size. That is irrelevant at
+    // this scale and is not what you would do at a larger one.
+    const keys: Array<{ id: string }> = [];
+    let lastEvaluatedKey: Record<string, unknown> | undefined;
+
+    do {
+      const result = await this.docClient.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          ProjectionExpression: 'id',
+          ExclusiveStartKey: lastEvaluatedKey,
+        }),
+      );
+      const items = result.Items ?? [];
+      for (const item of items) {
+        keys.push({ id: item.id as string });
+      }
+      lastEvaluatedKey = result.LastEvaluatedKey;
+    } while (lastEvaluatedKey !== undefined);
+
+    let deleted = 0;
+    for (let index = 0; index < keys.length; index += BATCH_WRITE_SIZE) {
+      const batch = keys.slice(index, index + BATCH_WRITE_SIZE);
+      deleted += await this.deleteBatch(batch);
+    }
+
+    return deleted;
+  }
+
+  private async deleteBatch(keys: Array<{ id: string }>): Promise<number> {
+    let remaining = keys;
+
+    for (let attempt = 0; attempt <= MAX_BATCH_RETRIES; attempt += 1) {
+      const result = await this.docClient.send(
+        new BatchWriteCommand({
+          RequestItems: {
+            [this.tableName]: remaining.map((key) => ({ DeleteRequest: { Key: key } })),
+          },
+        }),
+      );
+
+      const unprocessed = result.UnprocessedItems?.[this.tableName] ?? [];
+      if (unprocessed.length === 0) {
+        return keys.length;
+      }
+
+      remaining = unprocessed
+        .map((request) =>
+          'DeleteRequest' in request && request.DeleteRequest?.Key !== undefined
+            ? (request.DeleteRequest.Key as { id: string })
+            : undefined,
+        )
+        .filter((key): key is { id: string } => key !== undefined);
+
+      if (remaining.length > 0 && attempt < MAX_BATCH_RETRIES) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, BATCH_RETRY_DELAY_MS);
+        });
+      }
+    }
+
+    throw new Error(
+      `Failed to delete ${remaining.length} score(s) after ${MAX_BATCH_RETRIES} retries.`,
+    );
   }
 }

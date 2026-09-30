@@ -5,7 +5,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../domain/errors.js';
-import { listTopScores, submitScore } from '../application/ranking-service.js';
+import { listTopScores, purgeScores, submitScore } from '../application/ranking-service.js';
 import type { ScoreRepository } from '../ports/score-repository.js';
 
 const VERSION = '0.1.0';
@@ -44,7 +44,7 @@ type RouteHandler = (request: ApiRequest, deps: { repo: ScoreRepository }) => Pr
 const jsonHeaders: Record<string, string> = {
   'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -97,6 +97,10 @@ const routes: Record<string, Record<string, RouteHandler>> = {
     },
     GET: async (request, { repo }) => {
       const result = await listTopScores(repo, request.query);
+      return ok(result);
+    },
+    DELETE: async (request, { repo }) => {
+      const result = await purgeScores(repo, request.query);
       return ok(result);
     },
   },

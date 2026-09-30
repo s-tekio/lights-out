@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ValidationError } from '../../src/domain/errors.js';
 import type { Score } from '../../src/domain/score.js';
 import type { ListTopOptions, ScoreRepository } from '../../src/ports/score-repository.js';
-import { listTopScores, submitScore } from '../../src/application/ranking-service.js';
+import { listTopScores, purgeScores, submitScore } from '../../src/application/ranking-service.js';
 
 class InMemoryRepository implements ScoreRepository {
   private readonly scores: Score[] = [];
@@ -57,6 +57,12 @@ class InMemoryRepository implements ScoreRepository {
     });
     const index = all.findIndex((item) => item.id === score.id);
     return index === -1 ? all.length + 1 : index + 1;
+  }
+
+  deleteAll(): Promise<number> {
+    const count = this.scores.length;
+    this.scores.length = 0;
+    return Promise.resolve(count);
   }
 }
 
@@ -169,5 +175,49 @@ describe('listTopScores', () => {
     await expect(listTopScores(repo, { order: 'sideways' })).rejects.toBeInstanceOf(
       ValidationError,
     );
+  });
+});
+
+describe('purgeScores', () => {
+  it('purges all scores and returns the count when confirmed', async () => {
+    const repo = new InMemoryRepository();
+    await submitScore(repo, {
+      playerName: 'A',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 0,
+    });
+    await submitScore(repo, {
+      playerName: 'B',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 0,
+    });
+
+    const result = await purgeScores(repo, { confirm: 'DELETE' });
+    expect(result.deleted).toBe(2);
+
+    const list = await listTopScores(repo, {});
+    expect(list.items).toEqual([]);
+  });
+
+  it('throws ValidationError for an invalid confirmation', async () => {
+    const repo = new InMemoryRepository();
+    await expect(purgeScores(repo, { confirm: 'delete' })).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('does not purge when the confirmation is invalid', async () => {
+    const repo = new InMemoryRepository();
+    await submitScore(repo, {
+      playerName: 'A',
+      boardSize: 5,
+      moves: 7,
+      elapsedMs: 0,
+    });
+
+    await expect(purgeScores(repo, { confirm: 'no' })).rejects.toBeInstanceOf(ValidationError);
+
+    const list = await listTopScores(repo, {});
+    expect(list.items.length).toBe(1);
   });
 });

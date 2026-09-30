@@ -17,4 +17,5 @@ export interface ScoreRepository {
   save(score: Score): Promise<Score>;
   listTop(options: ListTopOptions): Promise<readonly Score[]>;
   rankOf(score: Score): Promise<number>;
+  deleteAll(): Promise<number>;
 }

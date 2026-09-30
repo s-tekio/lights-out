@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
+import type { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { DynamoDbScoreRepository } from '../../src/adapters/dynamodb-score-repository.js';
 
 function mockDocClient(sendOverride?: () => Promise<unknown>): {
@@ -14,6 +16,22 @@ function mockDocClient(sendOverride?: () => Promise<unknown>): {
         return sendOverride();
       }
       return Promise.resolve({ Items: [], Count: 0 });
+    }),
+  } as unknown as DynamoDBDocumentClient;
+  return { client, sent };
+}
+
+function mockDocClientWithBehavior(
+  behavior: (command: ScanCommand | BatchWriteCommand) => Promise<unknown>,
+): {
+  client: DynamoDBDocumentClient;
+  sent: unknown[];
+} {
+  const sent: unknown[] = [];
+  const client = {
+    send: vi.fn((command: ScanCommand | BatchWriteCommand) => {
+      sent.push(command.input);
+      return behavior(command);
     }),
   } as unknown as DynamoDBDocumentClient;
   return { client, sent };
@@ -135,5 +153,60 @@ describe('DynamoDbScoreRepository unit', () => {
     const rank = await repo.rankOf(score);
 
     expect(rank).toBe(1);
+  });
+
+  it('scans and deletes all items, returning the count', async () => {
+    const { client } = mockDocClientWithBehavior((command) => {
+      if (command instanceof ScanCommand) {
+        return Promise.resolve({ Items: [{ id: 'a' }, { id: 'b' }] });
+      }
+      return Promise.resolve({ UnprocessedItems: {} });
+    });
+    const repo = new DynamoDbScoreRepository(client, 'scores');
+
+    const deleted = await repo.deleteAll();
+
+    expect(deleted).toBe(2);
+  });
+
+  it('retries unprocessed delete items', async () => {
+    const { client } = mockDocClientWithBehavior((command) => {
+      if (command instanceof ScanCommand) {
+        return Promise.resolve({ Items: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
+      }
+
+      const input = command.input as { RequestItems?: Record<string, unknown[]> };
+      const requests = input.RequestItems?.scores ?? [];
+      if (requests.length === 3) {
+        return Promise.resolve({
+          UnprocessedItems: {
+            scores: [{ DeleteRequest: { Key: { id: 'b' } } }],
+          },
+        });
+      }
+
+      return Promise.resolve({ UnprocessedItems: {} });
+    });
+    const repo = new DynamoDbScoreRepository(client, 'scores');
+
+    const deleted = await repo.deleteAll();
+
+    expect(deleted).toBe(3);
+  });
+
+  it('rejects when unprocessed items persist after retries', async () => {
+    const { client } = mockDocClientWithBehavior((command) => {
+      if (command instanceof ScanCommand) {
+        return Promise.resolve({ Items: [{ id: 'a' }] });
+      }
+      return Promise.resolve({
+        UnprocessedItems: {
+          scores: [{ DeleteRequest: { Key: { id: 'a' } } }],
+        },
+      });
+    });
+    const repo = new DynamoDbScoreRepository(client, 'scores');
+
+    await expect(repo.deleteAll()).rejects.toThrow('Failed to delete 1 score(s) after 3 retries.');
   });
 });

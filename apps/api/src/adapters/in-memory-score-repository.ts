@@ -110,4 +110,10 @@ export class InMemoryScoreRepository implements ScoreRepository {
     const index = ordered.findIndex((item) => item.id === score.id);
     return Promise.resolve(index === -1 ? ordered.length + 1 : index + 1);
   }
+
+  deleteAll(): Promise<number> {
+    const count = this.scores.length;
+    this.scores.length = 0;
+    return Promise.resolve(count);
+  }
 }

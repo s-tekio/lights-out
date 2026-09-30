@@ -63,6 +63,38 @@ Responses:
 
 - `400 Bad Request` — validation failed. See the error shape below.
 
+## `DELETE /api/scores`
+
+Removes every score from the leaderboard.
+
+Query parameters:
+
+| Parameter | Type | Rules |
+| --- | --- | --- |
+| `confirm` | string | Required. Must be exactly `DELETE`, uppercase, with no trimming or extra characters. |
+
+Responses:
+
+- `200 OK` — the leaderboard was purged.
+
+```json
+{ "deleted": 3 }
+```
+
+- `400 Bad Request` — the confirmation is missing or incorrect.
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Purge confirmation is invalid.",
+    "details": [{ "field": "confirm", "message": "must be exactly 'DELETE'" }]
+  }
+}
+```
+
+**This endpoint is accident prevention, not authentication.** Anyone who can reach the API can wipe the leaderboard. The typed confirmation exists only to stop accidental clicks; a real deployment needs a login and an admin role.
+
 ## `GET /api/scores`
 
 Returns the leaderboard.

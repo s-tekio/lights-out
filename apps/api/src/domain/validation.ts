@@ -208,6 +208,27 @@ function parseOrder(raw: unknown, errors: FieldError[]): SortOrder | undefined {
   return undefined;
 }
 
+export type PurgeConfirmation = {
+  confirm: 'DELETE';
+};
+
+export function parsePurgeConfirmation(raw: unknown): ValidationResult<PurgeConfirmation> {
+  const query =
+    raw !== null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {};
+
+  const confirm = query.confirm;
+  if (confirm === 'DELETE') {
+    return { ok: true, value: { confirm: 'DELETE' } };
+  }
+
+  return {
+    ok: false,
+    errors: [{ field: 'confirm', message: "must be exactly 'DELETE'" }],
+  };
+}
+
 export function parseScoreQuery(raw: unknown): ValidationResult<ScoreQuery> {
   const query =
     raw !== null && typeof raw === 'object' && !Array.isArray(raw)

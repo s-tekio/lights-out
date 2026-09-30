@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { ValidationError } from '../domain/errors.js';
 import { computePoints } from '../domain/score.js';
 import type { Score, ScoreInput } from '../domain/score.js';
-import { parseScoreQuery, parseScoreSubmission, type ScoreQuery } from '../domain/validation.js';
+import {
+  parsePurgeConfirmation,
+  parseScoreQuery,
+  parseScoreSubmission,
+  type ScoreQuery,
+} from '../domain/validation.js';
 import type { ScoreRepository } from '../ports/score-repository.js';
 
 export type SubmitScoreResult = {
@@ -62,4 +67,21 @@ export async function listTopScores(
     sort: query.sort,
     order: query.order,
   };
+}
+
+export type PurgeScoresResult = {
+  deleted: number;
+};
+
+export async function purgeScores(
+  repo: ScoreRepository,
+  rawQuery: unknown,
+): Promise<PurgeScoresResult> {
+  const parsed = parsePurgeConfirmation(rawQuery);
+  if (!parsed.ok) {
+    throw new ValidationError('Purge confirmation is invalid.', parsed.errors);
+  }
+
+  const deleted = await repo.deleteAll();
+  return { deleted };
 }
