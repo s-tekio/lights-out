@@ -22,11 +22,16 @@ jobs:
         ports:
           - 8000:8000
     steps:
+      # fetch-depth 0 because gitleaks needs the commit history to work out which
+      # range to scan. With the default shallow clone it cannot, and it fails with
+      # "ERROR: Unexpected exit code [1]" and no findings, which reads like a leak.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -71,7 +76,7 @@ jobs:
         working-directory: terraform
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -96,7 +101,7 @@ jobs:
         run: tflint --recursive --format compact
 
       - name: Trivy configuration scan
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: terraform/
@@ -145,10 +150,10 @@ jobs:
           fi
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
