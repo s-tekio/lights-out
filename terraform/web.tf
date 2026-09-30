@@ -181,9 +181,15 @@ resource "aws_cloudfront_distribution" "web" {
     # AWS managed policy: CachingDisabled (4135ea2d-6df8-44a3-9df3-4b5a84be39ad)
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
 
-    # AWS managed policy: Managed-AllViewer (216adef6-5c7f-47e4-b989-5492eafa07d3)
-    # forwards query strings, so ?confirm=DELETE, sort and limit reach the API.
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    # AWS managed policy: Managed-AllViewerExceptHostHeader
+    # (b689b0a8-53d0-40ab-baf2-68738e2966ac). It forwards every query string, so
+    # ?confirm=DELETE, sort and limit reach the API.
+    #
+    # It has to be this one and not Managed-AllViewer, which forwards the Host header
+    # too. The viewer's Host is the CloudFront domain, and API Gateway refuses a
+    # request whose Host is not its own with 403 {"message":"Forbidden"}. That was
+    # the first deployment's symptom, while calling the API directly returned 200.
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
   }
 
   restrictions {
