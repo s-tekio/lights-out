@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchLeaderboard,
   getScoresErrorMessage,
+  purgeScores,
   type Score,
   type SortColumn,
   type SortOrder,
@@ -13,6 +14,7 @@ import {
   isDifficultyId,
   type DifficultyId,
 } from '../game/difficulty';
+import { PurgeDialog } from './PurgeDialog';
 
 type LeaderboardProps = {
   readonly refreshKey?: number;
@@ -74,6 +76,9 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
     sort: 'points',
     order: SORT_DEFAULTS.points,
   });
+  const [isPurgeOpen, setIsPurgeOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const purgeTriggerRef = useRef<HTMLButtonElement>(null);
 
   const boardSizeFilter = resolveBoardSizeFilter(difficultyFilter);
 
@@ -105,10 +110,12 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
   const handleFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
     setDifficultyFilter(isDifficultyId(value) ? value : null);
+    setSuccessMessage(null);
   };
 
   const handleSort = (column: SortColumn) => {
     setSortState((current) => nextSortState(current, column));
+    setSuccessMessage(null);
   };
 
   const sortableHeader = (column: SortColumn, label: string) => {
@@ -165,14 +172,32 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
           <button
             type="button"
             onClick={() => {
+              setSuccessMessage(null);
               void load();
             }}
             disabled={state.kind === 'loading'}
           >
             Refresh
           </button>
+          <button
+            ref={purgeTriggerRef}
+            type="button"
+            className="leaderboard__clear"
+            aria-haspopup="dialog"
+            aria-expanded={isPurgeOpen}
+            aria-controls={isPurgeOpen ? 'purge-dialog' : undefined}
+            onClick={() => setIsPurgeOpen(true)}
+          >
+            Clear leaderboard
+          </button>
         </div>
       </div>
+
+      {successMessage && (
+        <p className="leaderboard__success" aria-live="polite">
+          {successMessage}
+        </p>
+      )}
 
       {state.kind === 'loading' && (
         <p className="leaderboard__loading" aria-live="polite">
@@ -187,6 +212,19 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
       )}
 
       {state.kind === 'empty' && <p className="leaderboard__empty">No scores yet.</p>}
+
+      <PurgeDialog
+        isOpen={isPurgeOpen}
+        onClose={() => setIsPurgeOpen(false)}
+        triggerRef={purgeTriggerRef}
+        onPurge={() => purgeScores('DELETE')}
+        onSuccess={(result) => {
+          setSuccessMessage(
+            `Cleared ${result.deleted} score${result.deleted === 1 ? '' : 's'} from the leaderboard.`,
+          );
+          void load();
+        }}
+      />
 
       {state.kind === 'ready' && (
         <table className="leaderboard__table">

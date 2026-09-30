@@ -9,6 +9,7 @@ vi.mock('../src/api/scores', () => ({
     boardSize: null,
   }),
   submitScore: vi.fn(),
+  purgeScores: vi.fn(),
   getScoresErrorMessage: vi.fn(),
 }));
 

@@ -41,6 +41,10 @@ export type LeaderboardResponse = {
   readonly order: SortOrder;
 };
 
+export type PurgeResponse = {
+  readonly deleted: number;
+};
+
 type FieldError = {
   readonly field: string;
   readonly message: string;
@@ -162,6 +166,10 @@ function isSortOrder(value: unknown): value is SortOrder {
   return isString(value) && SORT_ORDERS.includes(value);
 }
 
+function isPurgeResponse(value: unknown): value is PurgeResponse {
+  return isObject(value) && isInteger(value.deleted);
+}
+
 function isLeaderboardResponse(value: unknown): value is LeaderboardResponse {
   if (!isObject(value)) {
     return false;
@@ -265,6 +273,35 @@ export async function submitScore(
   if (!isSubmitScoreResponse(body)) {
     throw new MalformedResponseError(
       'The server returned a score response in an unexpected shape.',
+    );
+  }
+
+  return body;
+}
+
+export async function purgeScores(
+  confirm: string,
+  fetchImpl: FetchLike = fetch,
+): Promise<PurgeResponse> {
+  const params = new URLSearchParams();
+  params.set('confirm', confirm);
+  const url = `/api/scores?${params.toString()}`;
+
+  let response: Response;
+  try {
+    response = await fetchImpl(url, { method: 'DELETE' });
+  } catch (cause) {
+    throw new NetworkError('The purge request could not reach the server.', cause);
+  }
+
+  if (!response.ok) {
+    throw await readErrorBody(response);
+  }
+
+  const body: unknown = await response.json();
+  if (!isPurgeResponse(body)) {
+    throw new MalformedResponseError(
+      'The server returned a purge response in an unexpected shape.',
     );
   }
 

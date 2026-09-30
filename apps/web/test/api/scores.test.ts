@@ -4,6 +4,7 @@ import {
   fetchLeaderboard,
   MalformedResponseError,
   NetworkError,
+  purgeScores,
   submitScore,
   UnparseableResponseError,
   type FetchLike,
@@ -123,6 +124,79 @@ describe('submitScore', () => {
     const fetch = createFailingFetchStub(new TypeError('Failed to fetch'));
 
     const error = await submitScore(validSubmission, fetch).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(NetworkError);
+  });
+});
+
+describe('purgeScores', () => {
+  it('parses a successful response with a deleted count', async () => {
+    const { fetch, calls } = createFetchStub(jsonResponse({ deleted: 2 }));
+    const result = await purgeScores('DELETE', fetch);
+
+    expect(result.deleted).toBe(2);
+
+    const firstCall = calls[0];
+    expect(firstCall).toBeDefined();
+    if (firstCall === undefined) return;
+
+    expect(firstCall.url).toBe('/api/scores?confirm=DELETE');
+    expect(firstCall.init).toMatchObject({ method: 'DELETE' });
+  });
+
+  it('url-encodes the confirmation value', async () => {
+    const { fetch, calls } = createFetchStub(jsonResponse({ deleted: 0 }));
+    await purgeScores('DELETE ME', fetch);
+
+    const firstCall = calls[0];
+    expect(firstCall).toBeDefined();
+    if (firstCall === undefined) return;
+
+    expect(firstCall.url).toBe('/api/scores?confirm=DELETE+ME');
+  });
+
+  it('rejects a malformed success body instead of casting it', async () => {
+    const { fetch } = createFetchStub(jsonResponse({ deleted: 'all of them' }));
+
+    const error = await purgeScores('DELETE', fetch).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(MalformedResponseError);
+  });
+
+  it('surfaces a 400 with a well-formed error envelope', async () => {
+    const { fetch } = createFetchStub(
+      jsonResponse(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Purge confirmation is invalid.',
+            details: [{ field: 'confirm', message: "must be exactly 'DELETE'" }],
+          },
+        },
+        400,
+      ),
+    );
+
+    const error = await purgeScores('delete', fetch).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ApiError);
+
+    if (error instanceof ApiError) {
+      expect(error.status).toBe(400);
+      expect(error.code).toBe('VALIDATION_ERROR');
+      expect(error.message).toBe('Purge confirmation is invalid.');
+      expect(error.details[0]?.field).toBe('confirm');
+    }
+  });
+
+  it('surfaces a non-2xx response with an unparseable body', async () => {
+    const { fetch } = createFetchStub(new Response('Internal Server Error', { status: 500 }));
+
+    const error = await purgeScores('DELETE', fetch).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(UnparseableResponseError);
+  });
+
+  it('surfaces a rejected fetch as a network error', async () => {
+    const fetch = createFailingFetchStub(new TypeError('Failed to fetch'));
+
+    const error = await purgeScores('DELETE', fetch).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(NetworkError);
   });
 });

@@ -1,18 +1,25 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchLeaderboard, type LeaderboardResponse, type Score } from '../../src/api/scores';
+import {
+  fetchLeaderboard,
+  purgeScores,
+  type LeaderboardResponse,
+  type Score,
+} from '../../src/api/scores';
 import { DIFFICULTIES, findDifficultyById, formatDifficultyLabel } from '../../src/game/difficulty';
 import { Leaderboard } from '../../src/components/Leaderboard';
 
 vi.mock('../../src/api/scores', () => ({
   fetchLeaderboard: vi.fn(),
   submitScore: vi.fn(),
+  purgeScores: vi.fn(),
   getScoresErrorMessage: vi.fn((error: unknown) =>
     error instanceof Error ? error.message : 'Unknown error',
   ),
 }));
 
 const mockedFetchLeaderboard = vi.mocked(fetchLeaderboard);
+const mockedPurgeScores = vi.mocked(purgeScores);
 
 const validScore: Score = {
   id: '3f1c8f1e-6c0e-4a5e-9f4e-0a2b7c9d1e2f',
@@ -35,6 +42,7 @@ const defaultResponse: LeaderboardResponse = {
 describe('Leaderboard', () => {
   beforeEach(() => {
     mockedFetchLeaderboard.mockReset();
+    mockedPurgeScores.mockReset();
   });
 
   afterEach(() => {
@@ -312,5 +320,53 @@ describe('Leaderboard', () => {
         order: 'asc',
       }),
     );
+  });
+
+  it('shows a Clear leaderboard button beside the level filter and refresh action', async () => {
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
+    render(<Leaderboard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Clear leaderboard/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByLabelText(/Level/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Refresh/i })).toBeInTheDocument();
+  });
+
+  it('opens the purge dialog when Clear leaderboard is clicked', async () => {
+    mockedFetchLeaderboard.mockResolvedValue(defaultResponse);
+    render(<Leaderboard />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Clear leaderboard/i })).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Clear leaderboard/i }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Clear leaderboard/i })).toBeInTheDocument();
+  });
+
+  it('refreshes the leaderboard and reports the count after a successful purge', async () => {
+    mockedFetchLeaderboard
+      .mockResolvedValueOnce({ ...defaultResponse, items: [validScore] })
+      .mockResolvedValueOnce(defaultResponse);
+    mockedPurgeScores.mockResolvedValue({ deleted: 1 });
+
+    render(<Leaderboard />);
+
+    await waitFor(() => expect(screen.getByText('Tekio')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Clear leaderboard/i }));
+    fireEvent.change(screen.getByLabelText(/Type DELETE to confirm/i), {
+      target: { value: 'DELETE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Clear all scores/i }));
+
+    await waitFor(() => expect(mockedPurgeScores).toHaveBeenCalledWith('DELETE'));
+    await waitFor(() => expect(mockedFetchLeaderboard).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByText(/Cleared 1 score from the leaderboard/i)).toBeInTheDocument(),
+    );
+    await waitFor(() => expect(screen.getByText(/No scores yet/i)).toBeInTheDocument());
   });
 });
