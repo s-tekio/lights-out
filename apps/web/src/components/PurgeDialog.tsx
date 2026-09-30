@@ -27,6 +27,21 @@ export function PurgeDialog({ isOpen, onClose, triggerRef, onPurge, onSuccess }:
 
   const canConfirm = value === CONFIRMATION_VALUE && !isPending;
 
+  // The confirm control stays disabled until the value matches exactly, which is
+  // what the server requires. A disabled button with no visible difference and no
+  // explanation is a trap: the player types something close, clicks a control that
+  // still looks active, and nothing happens for a reason they cannot see. That was
+  // reported as "no request is made when confirming". So the mismatch is now
+  // stated, and the styles make the disabled state unmistakable.
+  const showsConfirmationHint = value !== '' && value !== CONFIRMATION_VALUE;
+  const describedBy =
+    [
+      showsConfirmationHint ? 'purge-confirm-hint' : null,
+      error !== null ? 'purge-dialog-error' : null,
+    ]
+      .filter((id): id is string => id !== null)
+      .join(' ') || undefined;
+
   const handleConfirm = async () => {
     if (!canConfirm) {
       return;
@@ -76,8 +91,15 @@ export function PurgeDialog({ isOpen, onClose, triggerRef, onPurge, onSuccess }:
           onChange={(event) => setValue(event.target.value)}
           disabled={isPending}
           autoComplete="off"
-          aria-describedby={error ? 'purge-dialog-error' : undefined}
+          aria-invalid={showsConfirmationHint}
+          aria-describedby={describedBy}
         />
+        {showsConfirmationHint && (
+          <p id="purge-confirm-hint" className="purge-dialog__hint">
+            It must be exactly <code>DELETE</code>: capitals only, with no extra characters or
+            spaces.
+          </p>
+        )}
       </div>
       {error !== null && (
         <p id="purge-dialog-error" className="purge-dialog__error" role="alert">

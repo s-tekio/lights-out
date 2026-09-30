@@ -68,6 +68,39 @@ describe('PurgeDialog', () => {
     expect(confirmButton()).toBeEnabled();
   });
 
+  it('explains the mismatch instead of leaving a blocked click unexplained', () => {
+    render(<Harness />);
+
+    // Nothing to explain before anything is typed.
+    expect(screen.queryByText(/It must be exactly/i)).not.toBeInTheDocument();
+
+    typeConfirmation('delete');
+
+    expect(screen.getByText(/It must be exactly/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Type DELETE to confirm/i)).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.getByLabelText(/Type DELETE to confirm/i)).toHaveAccessibleDescription(
+      /It must be exactly/i,
+    );
+  });
+
+  it('withdraws the hint once the value matches exactly', () => {
+    render(<Harness />);
+
+    typeConfirmation('delete');
+    expect(screen.getByText(/It must be exactly/i)).toBeInTheDocument();
+
+    typeConfirmation('DELETE');
+
+    expect(screen.queryByText(/It must be exactly/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Type DELETE to confirm/i)).toHaveAttribute(
+      'aria-invalid',
+      'false',
+    );
+  });
+
   it('does not call onPurge when cancelled', () => {
     const onPurge = vi.fn().mockResolvedValue({ deleted: 0 });
     render(<Harness onPurge={onPurge} />);
