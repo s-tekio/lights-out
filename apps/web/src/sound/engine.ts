@@ -6,6 +6,8 @@ export type SoundEngine = {
   stop(): void;
   press(cellIndex: number): void;
   dispose(): void;
+  setMusicEnabled(enabled: boolean): void;
+  setEffectsEnabled(enabled: boolean): void;
 };
 
 type AudioContextFactory = () => AudioContext | undefined;
@@ -32,14 +34,36 @@ function applyEnvelope(
   gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
 }
 
+function createNoiseBuffer(context: AudioContext): AudioBuffer {
+  const sampleRate = context.sampleRate;
+  const length = Math.ceil(sampleRate * 0.05);
+  const buffer = context.createBuffer(1, length, sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index += 1) {
+    data[index] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
 function playNote(context: AudioContext, event: ScheduleEvent): void {
-  const oscillator = context.createOscillator();
   const gainNode = context.createGain();
+
+  applyEnvelope(gainNode, event.gain, event.time, event.duration);
+
+  if (event.wave === 'noise') {
+    const source = context.createBufferSource();
+    source.buffer = createNoiseBuffer(context);
+    source.connect(gainNode);
+    gainNode.connect(context.destination);
+    source.start(event.time);
+    source.stop(event.time + event.duration + 0.02);
+    return;
+  }
+
+  const oscillator = context.createOscillator();
 
   oscillator.type = event.wave;
   oscillator.frequency.value = event.frequency;
-
-  applyEnvelope(gainNode, event.gain, event.time, event.duration);
 
   oscillator.connect(gainNode);
   gainNode.connect(context.destination);
@@ -55,6 +79,8 @@ function createWebAudioEngine(createContext: AudioContextFactory = getAudioConte
   let nextEventIndex = 0;
   let schedulerId: ReturnType<typeof setInterval> | undefined;
   let isRunning = false;
+  let musicEnabled = true;
+  let effectsEnabled = true;
 
   function ensureContext(): AudioContext | undefined {
     if (context === undefined) {
@@ -98,6 +124,10 @@ function createWebAudioEngine(createContext: AudioContextFactory = getAudioConte
     isSupported: true,
 
     start() {
+      if (!musicEnabled) {
+        return;
+      }
+
       const activeContext = ensureContext();
       if (activeContext === undefined) {
         return;
@@ -133,6 +163,10 @@ function createWebAudioEngine(createContext: AudioContextFactory = getAudioConte
     },
 
     press(cellIndex: number) {
+      if (!effectsEnabled) {
+        return;
+      }
+
       const activeContext = ensureContext();
       if (activeContext === undefined) {
         return;
@@ -177,6 +211,17 @@ function createWebAudioEngine(createContext: AudioContextFactory = getAudioConte
       }
       schedule = undefined;
     },
+
+    setMusicEnabled(enabled: boolean) {
+      musicEnabled = enabled;
+      if (!enabled && isRunning) {
+        this.stop();
+      }
+    },
+
+    setEffectsEnabled(enabled: boolean) {
+      effectsEnabled = enabled;
+    },
   };
 }
 
@@ -199,6 +244,8 @@ export const silentSoundEngine: SoundEngine = {
   stop: () => undefined,
   press: () => undefined,
   dispose: () => undefined,
+  setMusicEnabled: () => undefined,
+  setEffectsEnabled: () => undefined,
 };
 
 export function createSoundEngine(): SoundEngine {

@@ -7,7 +7,7 @@
 
 ## Goal
 
-Add retro arcade audio: a relaxed chiptune loop, a blip on every cell press, and a floating button to turn sound on and off.
+Add retro arcade audio: an arcade-style chiptune loop, a blip on every cell press, and separate switches for music and effects.
 
 ## Origin
 
@@ -43,11 +43,11 @@ Consequences the implementation has to honour:
 | Decision | Chosen | Rationale |
 | --- | --- | --- |
 | Synthesis engine | A pure module for the music data and note maths, plus a thin adapter around `AudioContext` | The same port-and-adapter split used in the API. jsdom has no `AudioContext`, so an engine that cannot be injected cannot be tested at all. |
-| Music shape | A slow tempo, a looping chord progression, a triangle bass and a quiet square arpeggio, no percussion | Relaxed rather than driving. Percussion is what makes chiptune feel stressful. |
+| Music shape | A fast tempo, an eight-bar looping chord progression, a driving triangle bass, a busy square arpeggio, and a light noise hit | Arcade energy rather than calm; the rhythm and density carry the feeling, not the volume. |
 | Volume | Music well below the sound effects | The request was explicitly "not strident". |
 | Press sound | A short blip with a fast decay, its pitch stepped slightly by cell so rapid presses do not sound identical | A single repeated tone becomes irritating within seconds. |
-| Default state | Enabled, persisted in `localStorage` | A game is expected to have sound, and the choice has to survive a reload. The autoplay policy means nothing is heard until the user interacts anyway. |
-| Toggle placement | `fixed` at the bottom right, semi-transparent, respecting the phone safe area | As requested. |
+| Default state | Music and effects both enabled, persisted independently in `localStorage` | A game is expected to have sound, and the choices have to survive a reload. The autoplay policy means nothing is heard until the user interacts anyway. |
+| Toggle placement | Removed; sound controls move to the in-game modal and the settings screen | The floating button is gone because the next screens need independent music and effects switches. |
 | Stacking | Below the modal backdrop | A floating element can otherwise paint on top of an open dialog, which looks broken. |
 
 ## Tasks
@@ -55,8 +55,8 @@ Consequences the implementation has to honour:
 - [x] **T1 — The music module.** `apps/web/src/sound/music.ts` holds the note maths and the loop schedule and contains no Web Audio at all, which is what makes it testable.
 - [x] **T2 — The sound engine.** `apps/web/src/sound/engine.ts` defines the seam, the Web Audio implementation with a lookahead scheduler, and a silent fallback.
 - [x] **T3 — Wiring.** `Game` plays the blip only after the solved guard, so an ignored press stays silent, and `useSound` starts the music on the first gesture.
-- [x] **T4 — The floating toggle.** `SoundToggle` plus the `.sound-toggle` rules: fixed, circular, semi-transparent, 44 by 44, safe-area aware, and at `z-index: 50` against the backdrop's `100` so a dialog covers it.
-- [x] **T5 — Documentation.** The help dialog describes the sound and its button.
+- [x] **T4 — Remove the floating toggle.** `SoundToggle.tsx`, its test, and the `.sound-toggle` rules were deleted; the wiring was removed from `App.tsx`. Sound controls move to the in-game modal and the settings screen.
+- [x] **T5 — Documentation.** The help dialog describes the separate music and effects switches without pointing to a screen that does not exist yet.
 - [x] **T6 — Verification.** Committed locally. **Not pushed**, as asked.
 
 ## What was implemented
@@ -66,10 +66,10 @@ Consequences the implementation has to honour:
 | Note maths and the loop, pure | `apps/web/src/sound/music.ts` |
 | The engine and its seam | `apps/web/src/sound/engine.ts` |
 | Enabled state, persistence, first gesture | `apps/web/src/sound/useSound.ts` |
-| The floating button | `apps/web/src/components/SoundToggle.tsx` |
+| The wiring | `apps/web/src/App.tsx` |
 | The press sound | `apps/web/src/components/Game.tsx` |
 
-Music: 72 BPM, a four-bar I–vi–IV–V progression in C major, a triangle bass holding the roots and a quiet square arpeggio over it, no percussion and no noise. The gain ceiling is 0.08, under half of the press sound's peak, with a 40 ms attack and a 120 ms release so no note clicks.
+Music: 148 BPM, an eight-bar C–Am–F–G–C–F–G–Am progression in C major, a driving quarter-note triangle bass with octave jumps, a busy sixteenth-note square arpeggio, and a short quiet noise hit on each downbeat. The gain ceiling stays 0.08, under half of the press sound's peak, with a 10 ms attack and a 60 ms release for a punchy arcade feel.
 
 ## Verification evidence
 
@@ -79,16 +79,16 @@ Music: 72 BPM, a four-bar I–vi–IV–V progression in C major, a triangle bas
 | `npm run format:check` | exit 0 |
 | `npm run typecheck` | exit 0 |
 | `npm run build` | exit 0 |
-| `npm run test:coverage --workspace @lights-out/web` | exit 0, 201 tests in 17 files, 91.95% branch coverage |
+| `npm run test:coverage --workspace @lights-out/web` | exit 0, 207 tests in 16 files, 92.01% branch coverage |
 | No audio files, no new dependency | confirmed in `package.json` and in the diff |
 
-New tests cover the music schedule's determinism and bar coverage, the gain ceiling, the engine seam with a fake `AudioContext`, the silent fallback, nothing starting on mount, the first-gesture start, persistence, the press firing only on a real board change, and the toggle's two states.
+New tests cover the music schedule's determinism, bar coverage, bass pattern, sixteenth-note arpeggio density, downbeat percussion, gain ceiling, the engine seam with a fake `AudioContext`, music/effects enable flags, noise scheduling, the silent fallback, nothing starting on mount, the first-gesture start, independent persistence of the two switches, and the press firing only on a real board change.
 
 ## What is deliberately not verified
 
 **Nobody has heard it.** jsdom has no Web Audio implementation and there is no headless browser here, so no test asserts how any of this sounds. The tests pin the structure, the frequencies, the gain ceiling and the scheduling calls; the actual audio is reasoned about, not measured.
 
-The manual check a reader should do in a browser: click a cell and confirm the loop starts and a blip sounds; solve the board and click again and confirm it stays silent; open Help and confirm the floating button sits behind the dialog; toggle it off and on and confirm the icon changes shape.
+The manual check a reader should do in a browser: click a cell and confirm the loop starts and a blip sounds; solve the board and click again and confirm it stays silent; open Help and confirm the wording matches the new sound controls; once the in-game modal and settings screen exist, toggle music and effects separately and confirm each behaves as expected.
 
 ## Known limitations to record
 

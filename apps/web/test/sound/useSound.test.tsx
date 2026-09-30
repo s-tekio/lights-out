@@ -8,6 +8,8 @@ function createMockEngine(): SoundEngine & {
   stopCalls: number;
   pressCalls: number;
   disposeCalls: number;
+  lastMusicEnabled: boolean | null;
+  lastEffectsEnabled: boolean | null;
 } {
   return {
     isSupported: true,
@@ -15,6 +17,8 @@ function createMockEngine(): SoundEngine & {
     stopCalls: 0,
     pressCalls: 0,
     disposeCalls: 0,
+    lastMusicEnabled: null,
+    lastEffectsEnabled: null,
     start() {
       this.startCalls += 1;
     },
@@ -27,16 +31,35 @@ function createMockEngine(): SoundEngine & {
     dispose() {
       this.disposeCalls += 1;
     },
+    setMusicEnabled(enabled: boolean) {
+      this.lastMusicEnabled = enabled;
+    },
+    setEffectsEnabled(enabled: boolean) {
+      this.lastEffectsEnabled = enabled;
+    },
   };
 }
 
 function TestHarness({ engine }: { engine: SoundEngine }) {
-  const { enabled, toggle } = useSound(engine);
+  const { musicEnabled, effectsEnabled, toggleMusic, toggleEffects } = useSound(engine);
   return (
-    <button type="button" onClick={toggle}>
-      {enabled ? 'On' : 'Off'}
-    </button>
+    <div>
+      <button type="button" onClick={toggleMusic}>
+        Music {musicEnabled ? 'On' : 'Off'}
+      </button>
+      <button type="button" onClick={toggleEffects}>
+        Effects {effectsEnabled ? 'On' : 'Off'}
+      </button>
+    </div>
   );
+}
+
+function getMusicButton() {
+  return screen.getByRole('button', { name: /Music/i });
+}
+
+function getEffectsButton() {
+  return screen.getByRole('button', { name: /Effects/i });
 }
 
 describe('useSound', () => {
@@ -55,7 +78,7 @@ describe('useSound', () => {
     expect(engine.startCalls).toBe(0);
   });
 
-  it('starts the engine on the first pointer gesture when enabled', () => {
+  it('starts the engine on the first pointer gesture when music is enabled', () => {
     const engine = createMockEngine();
     render(<TestHarness engine={engine} />);
 
@@ -66,7 +89,7 @@ describe('useSound', () => {
     expect(engine.startCalls).toBe(1);
   });
 
-  it('starts the engine on the first keyboard gesture when enabled', () => {
+  it('starts the engine on the first keyboard gesture when music is enabled', () => {
     const engine = createMockEngine();
     render(<TestHarness engine={engine} />);
 
@@ -74,39 +97,81 @@ describe('useSound', () => {
     expect(engine.startCalls).toBe(1);
   });
 
-  it('toggles off and stops the engine', () => {
+  it('does not start the engine on gesture when music is disabled', () => {
     const engine = createMockEngine();
+    window.localStorage.setItem('lights-out:musicEnabled', 'false');
     render(<TestHarness engine={engine} />);
 
-    fireEvent.click(screen.getByRole('button'));
-    expect(screen.getByRole('button')).toHaveTextContent('Off');
-    expect(engine.stopCalls).toBe(1);
+    fireEvent.pointerDown(document);
     expect(engine.startCalls).toBe(0);
   });
 
-  it('toggles back on and starts the engine', () => {
+  it('toggles music off and stops the engine', () => {
     const engine = createMockEngine();
     render(<TestHarness engine={engine} />);
 
-    fireEvent.click(screen.getByRole('button'));
-    fireEvent.click(screen.getByRole('button'));
-
-    expect(screen.getByRole('button')).toHaveTextContent('On');
-    expect(engine.startCalls).toBe(1);
+    fireEvent.click(getMusicButton());
+    expect(getMusicButton()).toHaveTextContent('Music Off');
+    expect(engine.stopCalls).toBe(1);
+    expect(engine.startCalls).toBe(0);
+    expect(engine.lastMusicEnabled).toBe(false);
   });
 
-  it('persists the enabled state to localStorage', () => {
+  it('toggles music back on and starts the engine', () => {
     const engine = createMockEngine();
     render(<TestHarness engine={engine} />);
 
-    fireEvent.click(screen.getByRole('button'));
-    expect(window.localStorage.getItem('lights-out:soundEnabled')).toBe('false');
+    fireEvent.click(getMusicButton());
+    fireEvent.click(getMusicButton());
+
+    expect(getMusicButton()).toHaveTextContent('Music On');
+    expect(engine.startCalls).toBe(1);
+    expect(engine.lastMusicEnabled).toBe(true);
+  });
+
+  it('toggles effects without touching the engine loop', () => {
+    const engine = createMockEngine();
+    render(<TestHarness engine={engine} />);
+
+    fireEvent.click(getEffectsButton());
+    expect(getEffectsButton()).toHaveTextContent('Effects Off');
+    expect(engine.stopCalls).toBe(0);
+    expect(engine.startCalls).toBe(0);
+    expect(engine.lastEffectsEnabled).toBe(false);
+
+    fireEvent.click(getEffectsButton());
+    expect(getEffectsButton()).toHaveTextContent('Effects On');
+    expect(engine.lastEffectsEnabled).toBe(true);
+  });
+
+  it('persists the music state to localStorage', () => {
+    const engine = createMockEngine();
+    render(<TestHarness engine={engine} />);
+
+    fireEvent.click(getMusicButton());
+    expect(window.localStorage.getItem('lights-out:musicEnabled')).toBe('false');
+
+    cleanup();
+
+    const nextEngine = createMockEngine();
+    window.localStorage.setItem('lights-out:effectsEnabled', 'true');
+    render(<TestHarness engine={nextEngine} />);
+    expect(getMusicButton()).toHaveTextContent('Music Off');
+  });
+
+  it('persists the effects state to localStorage independently', () => {
+    const engine = createMockEngine();
+    render(<TestHarness engine={engine} />);
+
+    fireEvent.click(getEffectsButton());
+    expect(window.localStorage.getItem('lights-out:effectsEnabled')).toBe('false');
+    expect(window.localStorage.getItem('lights-out:musicEnabled')).toBeNull();
 
     cleanup();
 
     const nextEngine = createMockEngine();
     render(<TestHarness engine={nextEngine} />);
-    expect(screen.getByRole('button')).toHaveTextContent('Off');
+    expect(getEffectsButton()).toHaveTextContent('Effects Off');
   });
 
   it('disposes the engine on unmount', () => {

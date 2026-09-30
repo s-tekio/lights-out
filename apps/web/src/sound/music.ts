@@ -26,7 +26,7 @@ export type NoteName =
   | 'F5'
   | 'G5';
 
-export type WaveShape = 'triangle' | 'square';
+export type WaveShape = 'triangle' | 'square' | 'noise';
 
 export type MusicNote = {
   readonly frequency: number;
@@ -44,15 +44,15 @@ export type LoopSchedule = {
   readonly duration: number;
 };
 
-export const TEMPO_BPM = 72;
+export const TEMPO_BPM = 148;
 
-// A relaxed ceiling so the music sits well below the press sound.
+// A controlled ceiling so the music sits below the press sound.
 // The press sound peaks at PRESS_PEAK_GAIN; music stays under half of it.
 export const MUSIC_GAIN_CEILING = 0.08;
 
-// A slow attack and release keeps the loop from clicking or feeling urgent.
-const ATTACK_SECONDS = 0.04;
-const RELEASE_SECONDS = 0.12;
+// A tight attack and a short release keep the fast loop punchy and clean.
+const ATTACK_SECONDS = 0.01;
+const RELEASE_SECONDS = 0.06;
 
 export const ENVELOPE = {
   attack: ATTACK_SECONDS,
@@ -102,52 +102,83 @@ export function barSeconds(bpm: number): number {
   return beatSeconds(bpm) * 4;
 }
 
-// A gentle I - vi - IV - V progression in C major.
-// The bass holds roots in a low triangle wave; the arpeggio traces chord tones
-// with a quiet square wave. No percussion, no noise, slow tempo.
-const CHORDS = [
-  { name: 'C', root: 'C3' as const, tones: ['C4', 'E4', 'G4', 'C5'] as const },
-  { name: 'Am', root: 'A2' as const, tones: ['A3', 'C4', 'E4', 'A4'] as const },
-  { name: 'F', root: 'F2' as const, tones: ['F3', 'A3', 'C4', 'F4'] as const },
-  { name: 'G', root: 'G2' as const, tones: ['G3', 'B3', 'D4', 'G4'] as const },
+// An eight-bar arcade progression in C major.
+// The bass is a driving quarter-note figure with octave jumps.
+// The arpeggio runs sixteenth notes through the chord tones.
+// A single short noise hit marks the downbeat for arcade punch.
+type ChordDef = {
+  readonly name: string;
+  readonly root: NoteName;
+  readonly octave: NoteName;
+  readonly tones: readonly NoteName[];
+};
+
+const CHORDS: readonly ChordDef[] = [
+  { name: 'C', root: 'C2', octave: 'C3', tones: ['C4', 'E4', 'G4', 'C5'] },
+  { name: 'Am', root: 'A2', octave: 'A3', tones: ['A3', 'C4', 'E4', 'A4'] },
+  { name: 'F', root: 'F2', octave: 'F3', tones: ['F3', 'A3', 'C4', 'F4'] },
+  { name: 'G', root: 'G2', octave: 'G3', tones: ['G3', 'B3', 'D4', 'G4'] },
+  { name: 'C', root: 'C2', octave: 'C3', tones: ['C4', 'E4', 'G4', 'C5'] },
+  { name: 'F', root: 'F2', octave: 'F3', tones: ['F3', 'A3', 'C4', 'F4'] },
+  { name: 'G', root: 'G2', octave: 'G3', tones: ['G3', 'B3', 'D4', 'G4'] },
+  { name: 'Am', root: 'A2', octave: 'A3', tones: ['A3', 'C4', 'E4', 'A4'] },
 ];
 
 function buildBar(
   bpm: number,
   barIndex: number,
   root: NoteName,
+  octave: NoteName,
   tones: readonly NoteName[],
 ): ScheduleEvent[] {
   const beat = beatSeconds(bpm);
   const barOffset = barIndex * 4 * beat;
   const events: ScheduleEvent[] = [];
 
-  // Triangle-wave bass: whole notes, one per bar, low and steady.
-  events.push({
-    time: barOffset,
-    frequency: noteToFrequency(root),
-    duration: 4 * beat - 0.05,
-    gain: 0.05,
-    wave: 'triangle',
-  });
+  // Driving triangle-wave bass: quarter notes, jumping to the octave on beat 3.
+  const bassGain = 0.05;
+  const bassNotes: readonly NoteName[] = [root, root, octave, root];
+  for (let step = 0; step < bassNotes.length; step += 1) {
+    const note = bassNotes[step];
+    if (note === undefined) {
+      continue;
+    }
+    events.push({
+      time: barOffset + step * beat,
+      frequency: noteToFrequency(note),
+      duration: beat - 0.02,
+      gain: bassGain,
+      wave: 'triangle',
+    });
+  }
 
-  // Square-wave arpeggio: eighth-note chord tones, quiet and wandering.
-  // The pattern stays inside the chord so it never clashes or feels hurried.
-  const arpeggioGain = 0.03;
-  const step = beat / 2;
-  for (let index = 0; index < 8; index += 1) {
+  // Busy square-wave arpeggio: sixteenth-note chord tones.
+  const arpeggioGain = 0.04;
+  const sixteenth = beat / 4;
+  const stepsPerBar = 16;
+  for (let index = 0; index < stepsPerBar; index += 1) {
     const tone = tones[index % tones.length];
     if (tone === undefined) {
       continue;
     }
     events.push({
-      time: barOffset + index * step,
+      time: barOffset + index * sixteenth,
       frequency: noteToFrequency(tone),
-      duration: step - 0.02,
+      duration: sixteenth - 0.005,
       gain: arpeggioGain,
       wave: 'square',
     });
   }
+
+  // One short, quiet noise hit on the downbeat for rhythmic definition.
+  // Kept deliberately below the arpeggio so it adds energy, not loudness.
+  events.push({
+    time: barOffset,
+    frequency: 0,
+    duration: 0.03,
+    gain: 0.025,
+    wave: 'noise',
+  });
 
   return events;
 }
@@ -160,7 +191,7 @@ export function buildLoopSchedule(bpm: number = TEMPO_BPM): LoopSchedule {
     if (chord === undefined) {
       continue;
     }
-    events.push(...buildBar(bpm, barIndex, chord.root, chord.tones));
+    events.push(...buildBar(bpm, barIndex, chord.root, chord.octave, chord.tones));
   }
 
   // Sort by start time so the scheduler can walk the list in order.

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildLoopSchedule } from '../../src/sound/music';
 import {
   createSoundEngine,
   PRESS_PEAK_GAIN,
@@ -28,6 +29,13 @@ type FakeAudioParam = {
   exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
 };
 
+type FakeBufferSource = {
+  buffer: AudioBuffer | null;
+  connect: ReturnType<typeof vi.fn>;
+  start: ReturnType<typeof vi.fn>;
+  stop: ReturnType<typeof vi.fn>;
+};
+
 function createFakeAudioParam(): FakeAudioParam {
   return {
     value: 0,
@@ -40,11 +48,13 @@ function createFakeAudioParam(): FakeAudioParam {
 function createFakeAudioContext() {
   const oscillators: FakeOscillator[] = [];
   const gains: FakeGain[] = [];
+  const bufferSources: FakeBufferSource[] = [];
 
   const context = {
     state: 'suspended',
     currentTime: 0,
     destination: { connect: vi.fn() } as unknown as AudioDestinationNode,
+    sampleRate: 48000,
 
     resume: vi.fn().mockImplementation(function (this: typeof context) {
       this.state = 'running';
@@ -83,9 +93,30 @@ function createFakeAudioContext() {
       gains.push(gain);
       return gain;
     }),
+
+    createBuffer: vi.fn().mockImplementation((channels: number, length: number, rate: number) => {
+      return {
+        length,
+        numberOfChannels: channels,
+        sampleRate: rate,
+        duration: length / rate,
+        getChannelData: vi.fn().mockReturnValue(new Float32Array(length)),
+      };
+    }),
+
+    createBufferSource: vi.fn().mockImplementation(() => {
+      const source: FakeBufferSource = {
+        buffer: null,
+        connect: vi.fn().mockReturnThis(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      };
+      bufferSources.push(source);
+      return source;
+    }),
   };
 
-  return { context, oscillators, gains };
+  return { context, oscillators, gains, bufferSources };
 }
 
 describe('engine', () => {
@@ -118,6 +149,8 @@ describe('engine', () => {
     expect(engine.stop()).toBe(undefined);
     expect(engine.press(0)).toBe(undefined);
     expect(engine.dispose()).toBe(undefined);
+    expect(engine.setMusicEnabled(false)).toBe(undefined);
+    expect(engine.setEffectsEnabled(false)).toBe(undefined);
   });
 
   it('returns a supported engine when AudioContext is available', () => {
@@ -219,6 +252,52 @@ describe('engine', () => {
       await vi.advanceTimersByTimeAsync(200);
       expect(fake.context.createOscillator.mock.calls.length).toBe(callsAfterDispose);
     });
+
+    it('schedules a noise event with a buffer source', async () => {
+      const schedule = buildLoopSchedule();
+      const noiseEvent = schedule.events.find((event) => event.wave === 'noise');
+      expect(noiseEvent).toBeDefined();
+
+      engine.start();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(fake.context.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('skips press when effects are disabled', () => {
+      engine.start();
+      engine.setEffectsEnabled(false);
+      engine.press(0);
+      expect(fake.context.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('re-enables press when effects are turned back on', () => {
+      engine.start();
+      engine.setEffectsEnabled(false);
+      engine.setEffectsEnabled(true);
+      engine.press(0);
+      expect(fake.context.createOscillator).toHaveBeenCalled();
+    });
+
+    it('skips start when music is disabled', async () => {
+      engine.setMusicEnabled(false);
+      engine.start();
+      expect(fake.context.resume).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(fake.context.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('stops the loop when music is disabled while running', async () => {
+      engine.start();
+      await vi.advanceTimersByTimeAsync(50);
+      expect(fake.context.createOscillator).toHaveBeenCalled();
+
+      const callsBefore = fake.context.createOscillator.mock.calls.length;
+      engine.setMusicEnabled(false);
+
+      await vi.advanceTimersByTimeAsync(200);
+      expect(fake.context.createOscillator.mock.calls.length).toBe(callsBefore);
+      expect(fake.context.suspend).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('silent engine is a frozen no-op', () => {
@@ -227,5 +306,7 @@ describe('engine', () => {
     expect(silentSoundEngine.stop()).toBe(undefined);
     expect(silentSoundEngine.press(0)).toBe(undefined);
     expect(silentSoundEngine.dispose()).toBe(undefined);
+    expect(silentSoundEngine.setMusicEnabled(false)).toBe(undefined);
+    expect(silentSoundEngine.setEffectsEnabled(false)).toBe(undefined);
   });
 });

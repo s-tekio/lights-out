@@ -168,6 +168,8 @@ describe('Game', () => {
       stop: vi.fn(),
       press: vi.fn(),
       dispose: vi.fn(),
+      setMusicEnabled: vi.fn(),
+      setEffectsEnabled: vi.fn(),
     } satisfies SoundEngine;
 
     render(<Game initialDifficultyId="easy" random={constantRandom(0)} sound={sound} />);

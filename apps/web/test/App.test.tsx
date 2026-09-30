@@ -35,9 +35,4 @@ describe('App', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /How to play/i })).toBeInTheDocument();
   });
-
-  it('renders the sound toggle', () => {
-    render(<App />);
-    expect(screen.getByRole('button', { name: 'Sound' })).toBeInTheDocument();
-  });
 });

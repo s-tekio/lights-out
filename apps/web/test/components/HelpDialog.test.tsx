@@ -159,9 +159,10 @@ describe('HelpDialog', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/New game/i)).toBeInTheDocument();
     expect(screen.getByText(/timer starts on your first press/i)).toBeInTheDocument();
-    expect(screen.getByText(/A relaxed chiptune loop/i).textContent).toMatch(
-      /floating.*Sound.*button/i,
-    );
+    expect(screen.getByText(/An arcade-style chiptune loop/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Music and effects can be turned on or off separately/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/server computes your points/i)).toBeInTheDocument();
     expect(
       screen.getByText(
