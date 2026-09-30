@@ -259,10 +259,40 @@ CloudFront uses a zero-TTL cache policy for the default behaviour, and the S3 ob
 behaviour keeps the existing caching-disabled policy and is untouched. This removes the previous
 `local-exec` provisioner and the runtime dependency on the AWS CLI.
 
-The CI pipeline runs `terraform fmt -check -recursive`, `terraform init -backend=false`,
-`terraform validate`, plus `tflint` and a security scanner, without requiring long-lived AWS
-credentials in the repository. The test job also starts DynamoDB Local and sets
-`REQUIRE_DDB_LOCAL=1`, so the DynamoDB integration tests run in CI and a skip becomes a failure.
+The CI pipeline runs on every pull request and on every push to `main`. Pull requests go
+through the `quality` job (lint, format, typecheck, tests with DynamoDB Local, build, secret scan
+and dependency audit) and the `terraform` job (`fmt`, `validate`, `tflint` and a Trivy
+configuration scan). Neither job needs AWS credentials, so they stay green even when the lab
+session has expired.
+
+The `deploy` job runs only on a push to `main`, after both `quality` and `terraform` pass. It
+builds both workspaces and then runs `terraform apply -auto-approve`. The build has to run before
+the apply because `terraform/web.tf` uploads `apps/web/dist`; a missing directory would deploy an
+empty site. The DynamoDB `scores` table carries `prevent_destroy`, so an unattended apply cannot
+delete it.
+
+Required repository secrets for the deploy job:
+
+| Secret | Value |
+| --- | --- |
+| `AWS_ACCESS_KEY_ID` | Temporary lab session access key. |
+| `AWS_SECRET_ACCESS_KEY` | Temporary lab session secret key. |
+| `AWS_SESSION_TOKEN` | Temporary lab session token. |
+| `TF_VAR_owner` | The value of `owner` in your gitignored `terraform/terraform.tfvars`. |
+| `TF_VAR_alert_email` | The value of `alert_email` in your gitignored `terraform/terraform.tfvars`. |
+
+These credentials are the lab session's temporary credentials, not long-lived keys. They expire
+when the lab session ends, so the deploy job works while the session that produced them is valid
+and must be refreshed afterwards. Copy the new values into the repository secrets before the next
+push to `main`. Do not commit them.
+
+On a real AWS account you would swap the three `AWS_*` secrets for an OIDC trust between GitHub
+Actions and AWS; the provider uses the standard credential chain, so only the workflow's auth step
+would change. The Terraform code, the variables and the apply step would stay exactly the same.
+
+The pipeline deploys automatically on push to `main`. It does not run `terraform plan` on pull
+requests. It validates, lints and scans the Terraform on every PR, and it applies automatically on
+push to `main`.
 
 ### Running against DynamoDB Local
 
@@ -292,11 +322,6 @@ the item appeared in the DynamoDB table.
 
 With that target the **Clear leaderboard** button wipes the deployed leaderboard for real, because
 the purge is unauthenticated by design. See the known limitations.
-
-What is still missing:
-
-1. The GitHub Actions job that runs `terraform plan` on pull requests and `terraform apply` on
-   pushes to `main`.
 
 ## Teardown
 
@@ -351,14 +376,14 @@ These are real and current, not hypothetical:
   survive a reasonable spike; a ceiling of 10 throttles instead. Raising it needs a quota increase or
   provisioned concurrency, neither of which a student lab account allows.
 - **No anti-abuse controls.** No rate limiting, no captcha, no moderation.
-- **Deployment is partially implemented.** The Terraform stack is applied and the API is verified
-  live on AWS `eu-west-1`. The DynamoDB adapter, the CloudFront/S3 frontend hosting and the budget
-  are in place. Still missing: the push-to-main CI/CD pipeline, which the account's temporary
-  credentials and denied IAM management make unreachable. Least privilege is also unreachable, since
-  the account denies IAM management and the pre-existing execution role must be reused as-is.
+- **Deployment uses temporary lab credentials.** The GitHub Actions deploy job authenticates with
+  the lab session's temporary credentials stored as repository secrets. They expire when the
+  session ends and must be refreshed before each push to `main`. This is a limitation of the lab
+  account, not the design: on a real account, OIDC would replace the three `AWS_*` secrets with a
+  handful of workflow lines. Least privilege is also unreachable, since the account denies IAM
+  management and the pre-existing execution role must be reused as-is.
 
 ## Roadmap
 
-1. `terraform/`: add the CI/CD job that runs `terraform plan` on pull requests and `apply` on `main`.
-2. Anti-cheat: server-issued puzzle state so a submission can be validated.
-3. Accounts, so scores belong to a verified identity.
+1. Anti-cheat: server-issued puzzle state so a submission can be validated.
+2. Accounts, so scores belong to a verified identity.

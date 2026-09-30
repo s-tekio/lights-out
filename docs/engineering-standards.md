@@ -130,3 +130,23 @@ Recorded here so they are visible rather than discovered later.
 | The ranking API cannot verify that a game was actually solved. A client can report a plausible `moves` / `elapsedMs` pair. | The leaderboard is not trustworthy against a determined cheater. Server-side points computation removes arbitrary score injection, not result fabrication. | `docs/api-contract.md`, README future work |
 | The in-memory score repository does not survive a process restart. | Expected in local development. Production uses the DynamoDB adapter. | `lights-out-infra` feature |
 | No authentication. Player names are self-declared and unverified. | Anyone can submit under any name. | Future work |
+
+## Exceptions
+
+Rules here are waived only when the reason and expiry are recorded. Silent exceptions are treated
+as defects.
+
+### TF-10 — Terraform plan on pull requests
+
+The standard requires that `terraform plan` runs on pull requests and `terraform apply` runs only
+from `main` after review. The apply half holds: the `deploy` job is gated to pushes to `main` and
+needs both the `quality` and `terraform` jobs to pass first.
+
+The plan half is deliberately not implemented. The deploy job uses temporary lab credentials stored
+as repository secrets; they expire when the lab session ends. Running `terraform plan` on every pull
+request would fail with an expired or missing session token for a reason entirely unrelated to the
+pull request's content, which turns a stale credential into noise on unrelated changes. A failing
+check that is not about the change is worse than an absent one.
+
+**Expiry:** when the repository can authenticate GitHub Actions through OIDC or another non-session
+credential source.

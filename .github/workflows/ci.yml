@@ -104,3 +104,75 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: CRITICAL,HIGH
+
+  deploy:
+    name: Deploy to AWS
+    # Only run on a push to main. This workflow also triggers on pull_request,
+    # and a deploy must never run there.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [quality, terraform]
+    # Never cancel a running terraform apply mid-flight: it can leave
+    # infrastructure half-applied and state locked.
+    concurrency:
+      group: deploy-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: eu-west-1
+      TF_VAR_owner: ${{ secrets.TF_VAR_owner }}
+      TF_VAR_alert_email: ${{ secrets.TF_VAR_alert_email }}
+      TF_IN_AUTOMATION: 'true'
+
+    steps:
+      - name: Preflight — require lab credentials and Terraform variables
+        run: |
+          missing=()
+          [[ -z "$AWS_ACCESS_KEY_ID" ]] && missing+=("AWS_ACCESS_KEY_ID")
+          [[ -z "$AWS_SECRET_ACCESS_KEY" ]] && missing+=("AWS_SECRET_ACCESS_KEY")
+          [[ -z "$AWS_SESSION_TOKEN" ]] && missing+=("AWS_SESSION_TOKEN")
+          [[ -z "$TF_VAR_owner" ]] && missing+=("TF_VAR_owner")
+          [[ -z "$TF_VAR_alert_email" ]] && missing+=("TF_VAR_alert_email")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Missing required secret(s): ${missing[*]}"
+            echo "The lab credentials are temporary and must be refreshed each lab session."
+            echo "Update the repository secrets with the current session's credentials and the TF_VAR_ values from your gitignored terraform.tfvars, then re-run the job."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The build must precede the Terraform apply. terraform/web.tf uploads
+      # apps/web/dist using a fileset over that directory; if it is missing the
+      # plan would deploy an empty site instead of failing cleanly.
+      - name: Build
+        run: npm run build
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.9
+
+      - name: Terraform init
+        run: terraform -chdir=terraform init
+
+      # One apply deploys the Lambda code, API Gateway, frontend objects and the
+      # DynamoDB table definition together. The table carries prevent_destroy,
+      # so a mistaken apply cannot delete it; that is why an unattended apply is
+      # defensible here.
+      - name: Terraform apply
+        run: terraform -chdir=terraform apply -auto-approve
