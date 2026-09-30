@@ -261,9 +261,8 @@ behaviour keeps the existing caching-disabled policy and is untouched. This remo
 
 The CI pipeline runs on every pull request and on every push to `main`. Pull requests go
 through the `quality` job (lint, format, typecheck, tests with DynamoDB Local, build, secret scan
-and dependency audit) and the `terraform` job (`fmt`, `validate`, `tflint` and a Trivy
-configuration scan). Neither job needs AWS credentials, so they stay green even when the lab
-session has expired.
+and dependency audit) and the `terraform` job (`fmt` and `validate`). Neither job needs AWS
+credentials, so they stay green even when the lab session has expired.
 
 The `deploy` job runs only on a push to `main`, after both `quality` and `terraform` pass. It
 builds both workspaces and then runs `terraform apply -auto-approve`. The build has to run before
@@ -376,6 +375,8 @@ These are real and current, not hypothetical:
   survive a reasonable spike; a ceiling of 10 throttles instead. Raising it needs a quota increase or
   provisioned concurrency, neither of which a student lab account allows.
 - **No anti-abuse controls.** No rate limiting, no captcha, no moderation.
+- **No WAF in front of CloudFront.** A managed WAF web ACL costs roughly 5 USD per month, about seven times this project's total monthly estimate. The application has no authentication, no user data and no admin surface, and the API is rate limited at the API Gateway stage, which covers the abuse case a WAF would address. This was a deliberate, cost-based decision; it is recorded here rather than waived in a scanner ignore file.
+- **The S3 bucket encrypts with SSE-S3 rather than a customer-managed key.** Encryption at rest is in place; what is missing is key rotation, key policy control and KMS audit, which matter for sensitive data and are marginal for a bucket holding a public React bundle rebuilt on every deploy. A customer-managed key is about 1 USD per month. This was a deliberate, cost-based decision; it is recorded here rather than waived in a scanner ignore file.
 - **Deployment uses temporary lab credentials.** The GitHub Actions deploy job authenticates with
   the lab session's temporary credentials stored as repository secrets. They expire when the
   session ends and must be refreshed before each push to `main`. This is a limitation of the lab
