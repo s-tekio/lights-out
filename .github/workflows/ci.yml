@@ -79,7 +79,7 @@ jobs:
           terraform_version: 1.15.9
 
       - name: Set up tflint
-        uses: terraform-linters/setup-tflint@v4
+        uses: terraform-linters/setup-tflint@v5
         with:
           tflint_version: v0.55.0
 
