@@ -90,6 +90,51 @@ New tests cover the music schedule's determinism, bar coverage, bass pattern, si
 
 The manual check a reader should do in a browser: click a cell and confirm the loop starts and a blip sounds; solve the board and click again and confirm it stays silent; open Help and confirm the wording matches the new sound controls; once the in-game modal and settings screen exist, toggle music and effects separately and confirm each behaves as expected.
 
+## Iteration: faster tempo, pulse and lead melody
+
+After listening, the user asked for more energy and a recognizable lead line. The response was tempo and melody, not volume.
+
+### Decisions
+
+| Decision | Chosen | Rationale |
+| --- | --- | --- |
+| Tempo | 172 BPM | The previous bump to 148 was not enough; 172 is a clear step up while still comfortable under a puzzle game. |
+| Loop length | 16 bars | Long enough for an A/B lead phrase without one bar repeated sixteen times. |
+| Pulse | Bass on every beat, a kick on every beat, and offbeat hi-hats | No gaps in the groove; the loop drives forward continuously. |
+| Lead voice | Monophonic `sawtooth` in a high register | Distinct from the triangle bass and square arpeggio; one note at a time so it reads as a melody, not a chord. |
+| Lead register | G5 to D6 | Above the bass (max A3) and above the arpeggio (max C5) so it does not compete. |
+| Mix | Lower the accompaniment, keep the 0.08 ceiling | Bass 0.028, arpeggio 0.022, percussion 0.02/0.009, lead 0.055. The lead is louder than the accompaniment without touching the ceiling. |
+| Hook | A four-note G5-G5-A5-G5 motif | Short enough to be memorable; it recurs in bars 0, 2 and 4 of the A phrase. |
+| A/B phrases | Bars 0-7 state the hook and answer it; bars 8-15 take the material higher and wider | The loop varies across its length instead of repeating one bar. |
+
+### What changed
+
+- `apps/web/src/sound/music.ts`
+  - Tempo raised from 148 to 172.
+  - Progression extended to 16 bars.
+  - Bass and arpeggio gains lowered.
+  - Percussion now hits every beat plus offbeats.
+  - Added a monophonic sawtooth lead with `LEAD_HOOK_SEQUENCE`, A phrase (bars 0-7) and B phrase (bars 8-15).
+  - Added high notes (`A5`, `B5`, `C6`, `D6`) and the `sawtooth` wave shape.
+- `apps/web/test/sound/music.test.ts`
+  - Updated existing bar-count tests from 8 to 16 bars.
+  - Added tempo, monophony, hook repetition, lead register, accompaniment-lowered, and every-beat percussion tests.
+
+### Verification evidence (iteration)
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | exit 0 |
+| `npm run format:check` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0 |
+| `npm run test:coverage --workspace @lights-out/web` | exit 0, 261 tests, branch coverage 92.28% |
+| No audio files, no new dependency | confirmed |
+
+### What is deliberately not verified
+
+No one here can hear the result. The tests pin the structure, the register, the gains and the repetition; whether the melody feels like the requested track can only be judged by the user.
+
 ## Known limitations to record
 
 - The music starts on the first interaction rather than on load, because the browser forbids anything else.

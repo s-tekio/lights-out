@@ -24,9 +24,13 @@ export type NoteName =
   | 'D5'
   | 'E5'
   | 'F5'
-  | 'G5';
+  | 'G5'
+  | 'A5'
+  | 'B5'
+  | 'C6'
+  | 'D6';
 
-export type WaveShape = 'triangle' | 'square' | 'noise';
+export type WaveShape = 'triangle' | 'square' | 'sawtooth' | 'noise';
 
 export type MusicNote = {
   readonly frequency: number;
@@ -44,11 +48,19 @@ export type LoopSchedule = {
   readonly duration: number;
 };
 
-export const TEMPO_BPM = 148;
+export const TEMPO_BPM = 172;
 
 // A controlled ceiling so the music sits below the press sound.
 // The press sound peaks at PRESS_PEAK_GAIN; music stays under half of it.
 export const MUSIC_GAIN_CEILING = 0.08;
+
+// Voice levels: the lead must sit above the accompaniment, so the
+// accompaniment is lowered instead of raising the ceiling.
+export const BASS_GAIN = 0.028;
+export const ARPEGGIO_GAIN = 0.022;
+export const PERCUSSION_DOWNBEAT_GAIN = 0.02;
+export const PERCUSSION_OFFBEAT_GAIN = 0.009;
+export const LEAD_GAIN = 0.055;
 
 // A tight attack and a short release keep the fast loop punchy and clean.
 const ATTACK_SECONDS = 0.01;
@@ -58,6 +70,8 @@ export const ENVELOPE = {
   attack: ATTACK_SECONDS,
   release: RELEASE_SECONDS,
 } as const;
+
+export const LEAD_WAVE: WaveShape = 'sawtooth';
 
 // Equal temperament: f = 440 * 2^((n - 69) / 12), where n is the MIDI number.
 const NOTE_OFFSETS: Record<NoteName, number> = {
@@ -87,6 +101,10 @@ const NOTE_OFFSETS: Record<NoteName, number> = {
   E5: 7,
   F5: 8,
   G5: 10,
+  A5: 12,
+  B5: 14,
+  C6: 15,
+  D6: 17,
 };
 
 export function noteToFrequency(note: NoteName): number {
@@ -102,10 +120,10 @@ export function barSeconds(bpm: number): number {
   return beatSeconds(bpm) * 4;
 }
 
-// An eight-bar arcade progression in C major.
-// The bass is a driving quarter-note figure with octave jumps.
-// The arpeggio runs sixteenth notes through the chord tones.
-// A single short noise hit marks the downbeat for arcade punch.
+// A sixteen-bar arcade progression in C major.
+// The bass and percussion lay down a relentless pulse, the arpeggio keeps
+// the harmony moving, and a monophonic sawtooth lead states a hook and then
+// answers it in a higher register.
 type ChordDef = {
   readonly name: string;
   readonly root: NoteName;
@@ -118,6 +136,14 @@ const CHORDS: readonly ChordDef[] = [
   { name: 'Am', root: 'A2', octave: 'A3', tones: ['A3', 'C4', 'E4', 'A4'] },
   { name: 'F', root: 'F2', octave: 'F3', tones: ['F3', 'A3', 'C4', 'F4'] },
   { name: 'G', root: 'G2', octave: 'G3', tones: ['G3', 'B3', 'D4', 'G4'] },
+  { name: 'C', root: 'C2', octave: 'C3', tones: ['C4', 'E4', 'G4', 'C5'] },
+  { name: 'F', root: 'F2', octave: 'F3', tones: ['F3', 'A3', 'C4', 'F4'] },
+  { name: 'G', root: 'G2', octave: 'G3', tones: ['G3', 'B3', 'D4', 'G4'] },
+  { name: 'Am', root: 'A2', octave: 'A3', tones: ['A3', 'C4', 'E4', 'A4'] },
+  { name: 'C', root: 'C2', octave: 'C3', tones: ['C4', 'E4', 'G4', 'C5'] },
+  { name: 'G', root: 'G2', octave: 'G3', tones: ['G3', 'B3', 'D4', 'G4'] },
+  { name: 'Am', root: 'A2', octave: 'A3', tones: ['A3', 'C4', 'E4', 'A4'] },
+  { name: 'F', root: 'F2', octave: 'F3', tones: ['F3', 'A3', 'C4', 'F4'] },
   { name: 'C', root: 'C2', octave: 'C3', tones: ['C4', 'E4', 'G4', 'C5'] },
   { name: 'F', root: 'F2', octave: 'F3', tones: ['F3', 'A3', 'C4', 'F4'] },
   { name: 'G', root: 'G2', octave: 'G3', tones: ['G3', 'B3', 'D4', 'G4'] },
@@ -136,7 +162,6 @@ function buildBar(
   const events: ScheduleEvent[] = [];
 
   // Driving triangle-wave bass: quarter notes, jumping to the octave on beat 3.
-  const bassGain = 0.05;
   const bassNotes: readonly NoteName[] = [root, root, octave, root];
   for (let step = 0; step < bassNotes.length; step += 1) {
     const note = bassNotes[step];
@@ -147,13 +172,12 @@ function buildBar(
       time: barOffset + step * beat,
       frequency: noteToFrequency(note),
       duration: beat - 0.02,
-      gain: bassGain,
+      gain: BASS_GAIN,
       wave: 'triangle',
     });
   }
 
   // Busy square-wave arpeggio: sixteenth-note chord tones.
-  const arpeggioGain = 0.04;
   const sixteenth = beat / 4;
   const stepsPerBar = 16;
   for (let index = 0; index < stepsPerBar; index += 1) {
@@ -165,20 +189,159 @@ function buildBar(
       time: barOffset + index * sixteenth,
       frequency: noteToFrequency(tone),
       duration: sixteenth - 0.005,
-      gain: arpeggioGain,
+      gain: ARPEGGIO_GAIN,
       wave: 'square',
     });
   }
 
-  // One short, quiet noise hit on the downbeat for rhythmic definition.
-  // Kept deliberately below the arpeggio so it adds energy, not loudness.
-  events.push({
-    time: barOffset,
-    frequency: 0,
-    duration: 0.03,
-    gain: 0.025,
-    wave: 'noise',
-  });
+  return events;
+}
+
+function buildPercussion(barOffset: number, beat: number): ScheduleEvent[] {
+  const events: ScheduleEvent[] = [];
+
+  // A kick-like hit on every beat keeps the pulse forward.
+  for (let step = 0; step < 4; step += 1) {
+    events.push({
+      time: barOffset + step * beat,
+      frequency: 0,
+      duration: 0.03,
+      gain: step === 0 ? PERCUSSION_DOWNBEAT_GAIN : 0.012,
+      wave: 'noise',
+    });
+  }
+
+  // Offbeat hi-hats fill the gaps so the groove never lets up.
+  for (let step = 0; step < 4; step += 1) {
+    events.push({
+      time: barOffset + (step + 0.5) * beat,
+      frequency: 0,
+      duration: 0.015,
+      gain: PERCUSSION_OFFBEAT_GAIN,
+      wave: 'noise',
+    });
+  }
+
+  return events;
+}
+
+type LeadStep = {
+  readonly note: NoteName | null;
+  readonly beats: number;
+};
+
+export const LEAD_HOOK_SEQUENCE: readonly NoteName[] = ['G5', 'G5', 'A5', 'G5'];
+
+// Sixteen bars of lead melody: bars 0-7 state the hook and answer it;
+// bars 8-15 take the same material higher and wider as a B phrase.
+const LEAD_PHRASE: readonly LeadStep[][] = [
+  // A phrase — bars 0-7
+  [
+    { note: 'G5', beats: 1 },
+    { note: 'G5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+  ],
+  [
+    { note: 'B5', beats: 1 },
+    { note: 'C6', beats: 1 },
+    { note: 'A5', beats: 2 },
+  ],
+  [
+    { note: 'G5', beats: 1 },
+    { note: 'G5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+  ],
+  [
+    { note: 'B5', beats: 0.5 },
+    { note: 'C6', beats: 0.5 },
+    { note: 'B5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+  ],
+  [
+    { note: 'G5', beats: 1 },
+    { note: 'G5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+  ],
+  [
+    { note: 'C6', beats: 1 },
+    { note: 'B5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+  ],
+  [
+    { note: 'A5', beats: 0.5 },
+    { note: 'B5', beats: 0.5 },
+    { note: 'C6', beats: 1 },
+    { note: 'B5', beats: 1 },
+    { note: 'A5', beats: 0.5 },
+    { note: 'G5', beats: 0.5 },
+  ],
+  [
+    { note: 'C6', beats: 2 },
+    { note: 'G5', beats: 2 },
+  ],
+  // B phrase — bars 8-15
+  [
+    { note: 'A5', beats: 1 },
+    { note: 'B5', beats: 1 },
+    { note: 'C6', beats: 1 },
+    { note: 'D6', beats: 1 },
+  ],
+  [
+    { note: 'C6', beats: 2 },
+    { note: 'B5', beats: 2 },
+  ],
+  [
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'B5', beats: 1 },
+  ],
+  [{ note: 'C6', beats: 4 }],
+  [
+    { note: 'G5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'B5', beats: 1 },
+    { note: 'C6', beats: 1 },
+  ],
+  [
+    { note: 'A5', beats: 2 },
+    { note: 'G5', beats: 2 },
+  ],
+  [
+    { note: 'C6', beats: 1 },
+    { note: 'B5', beats: 1 },
+    { note: 'A5', beats: 1 },
+    { note: 'G5', beats: 1 },
+  ],
+  [
+    { note: 'C6', beats: 3 },
+    { note: 'G5', beats: 1 },
+  ],
+];
+
+function buildLeadBar(bpm: number, barIndex: number, steps: readonly LeadStep[]): ScheduleEvent[] {
+  const beat = beatSeconds(bpm);
+  const barOffset = barIndex * 4 * beat;
+  const events: ScheduleEvent[] = [];
+  let beatOffset = 0;
+
+  for (const step of steps) {
+    if (step.note !== null) {
+      events.push({
+        time: barOffset + beatOffset * beat,
+        frequency: noteToFrequency(step.note),
+        duration: step.beats * beat - 0.015,
+        gain: LEAD_GAIN,
+        wave: LEAD_WAVE,
+      });
+    }
+    beatOffset += step.beats;
+  }
 
   return events;
 }
@@ -191,7 +354,15 @@ export function buildLoopSchedule(bpm: number = TEMPO_BPM): LoopSchedule {
     if (chord === undefined) {
       continue;
     }
+    const barOffset = barIndex * 4 * beatSeconds(bpm);
+
     events.push(...buildBar(bpm, barIndex, chord.root, chord.octave, chord.tones));
+    events.push(...buildPercussion(barOffset, beatSeconds(bpm)));
+
+    const leadSteps = LEAD_PHRASE[barIndex];
+    if (leadSteps !== undefined) {
+      events.push(...buildLeadBar(bpm, barIndex, leadSteps));
+    }
   }
 
   // Sort by start time so the scheduler can walk the list in order.
