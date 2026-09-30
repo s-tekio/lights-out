@@ -254,6 +254,18 @@ body {
   align-self: center;
 }
 
+/* Scoped to this menu on purpose: the other dialogs share .dialog h2, and the
+   settings screen shares .toggle, so an unscoped rule would move their text too. */
+.game-menu__title {
+  text-align: center;
+}
+
+/* The sound switches are flex rows, which pushes the label and its state to
+   opposite ends. Center them as a pair so the text sits under the other entries. */
+.game-menu .toggle {
+  justify-content: center;
+}
+
 /* Toggles */
 .toggle {
   display: flex;

@@ -33,7 +33,9 @@ export function GameMenu({
       dialogId="game-menu"
       titleId="game-menu-title"
     >
-      <h2 id="game-menu-title">Menu</h2>
+      <h2 id="game-menu-title" className="game-menu__title">
+        Menu
+      </h2>
       <nav aria-label="Game menu" className="game-menu">
         <button
           type="button"
