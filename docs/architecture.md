@@ -13,7 +13,7 @@ serverless; this one explains *how* the pieces fit and what the AWS data model l
 | `apps/api` ports | `ScoreRepository`. The seam between business logic and storage. | Implemented |
 | `apps/api` adapters | `InMemoryScoreRepository` for local development, `DynamoDbScoreRepository` for AWS. | Implemented |
 | `apps/api` http | Framework-agnostic router plus a thin Lambda adapter and a local `node:http` server. | Implemented |
-| `terraform/` | Infrastructure as code for the AWS stack. | Slice 1b: DynamoDB table added; frontend hosting still missing |
+| `terraform/` | Infrastructure as code for the AWS stack. | Implemented: API, DynamoDB, observability, budget and CloudFront/S3 hosting |
 
 ## The router is the centre of the design
 
@@ -255,8 +255,24 @@ known limitations and roadmap.
 | Compute | `node:http` process | Lambda | Different, but both delegate to the router |
 | Storage | In-memory by default, or DynamoDB Local via `SCORES_TABLE_NAME` | DynamoDB | Equivalent when DynamoDB Local is used; ordering semantics are identical |
 | TLS | None | CloudFront | Different |
-| CORS | Permissive headers from the router | API Gateway plus router headers | Equivalent for this use |
+| CORS | Permissive headers from the router | Not needed: `/api/*` is same-origin behind CloudFront | Simpler in production |
 
 The storage row is the honest gap. The in-memory adapter reproduces the contract's ordering but not
 DynamoDB's read consistency or its conditional-write behaviour, which is why the DynamoDB adapter
 needs its own integration tests rather than reusing the in-memory ones.
+
+## Static asset caching
+
+CloudFront serves the React SPA from a private S3 bucket through an origin access control. Two
+custom cache policies replace the previous AWS-managed policy and the `local-exec` invalidation:
+
+| Path pattern | Cache policy | TTL | Purpose |
+| --- | --- | --- | --- |
+| `/*` (default) | `index.html` | `min_ttl = 0`, `default_ttl = 0`, `max_ttl = 0` | Never cache `index.html`; it references hashed assets and must be fresh. |
+| `/assets/*` | `assets` | `min_ttl = 0`, `default_ttl = 31536000`, `max_ttl = 31536000` | Cache immutable hashed assets for a year. |
+
+Both policies include only the URL path in the cache key: no cookies, headers or query strings are
+forwarded, and gzip compression is enabled. S3 objects are uploaded with matching `Cache-Control`
+metadata: `no-cache` for `index.html` and `public, max-age=31536000, immutable` for everything under
+`assets/`. Because a new build changes the hashed asset filenames in `index.html`, no explicit
+invalidation is required.
