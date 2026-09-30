@@ -4,6 +4,7 @@ import { createSolvableBoard, isSolved, toggleAt } from '../game/board';
 import type { Difficulty, DifficultyId } from '../game/difficulty';
 import { DEFAULT_DIFFICULTY_ID, findDifficultyById } from '../game/difficulty';
 import { findOptimalSolution } from '../game/optimal';
+import type { SoundEngine } from '../sound/engine';
 import { Board } from './Board';
 import { StatusPanel } from './StatusPanel';
 
@@ -23,6 +24,7 @@ type GameProps = {
   readonly initialDifficultyId?: DifficultyId;
   readonly random?: () => number;
   readonly onScoreSubmitted?: () => void;
+  readonly sound?: SoundEngine;
 };
 
 function createInitialState(difficulty: Difficulty, random: () => number): GameState {
@@ -48,6 +50,7 @@ export function Game({
   initialDifficultyId = DEFAULT_DIFFICULTY_ID,
   random = Math.random,
   onScoreSubmitted,
+  sound,
 }: GameProps) {
   const [difficulty, setDifficulty] = useState<Difficulty>(() =>
     findDifficultyById(initialDifficultyId),
@@ -63,28 +66,35 @@ export function Game({
     return findOptimalSolution(difficulty.boardSize, state.scramblePresses);
   }, [state.status, state.scramblePresses, difficulty.boardSize]);
 
-  const handlePress = useCallback((index: number) => {
-    setState((previous) => {
-      if (previous.status === 'solved') {
-        return previous;
-      }
+  const handlePress = useCallback(
+    (index: number) => {
+      setState((previous) => {
+        if (previous.status === 'solved') {
+          return previous;
+        }
 
-      const nextBoard = toggleAt(previous.board, index);
-      const now = Date.now();
-      const nextStartTime = previous.startTime ?? now;
-      const solved = isSolved(nextBoard);
+        const nextBoard = toggleAt(previous.board, index);
+        const now = Date.now();
+        const nextStartTime = previous.startTime ?? now;
+        const solved = isSolved(nextBoard);
 
-      return {
-        ...previous,
-        board: nextBoard,
-        moves: previous.moves + 1,
-        status: solved ? 'solved' : 'playing',
-        startTime: nextStartTime,
-        elapsedMs: now - nextStartTime,
-        timerOn: !solved,
-      };
-    });
-  }, []);
+        if (sound !== undefined) {
+          sound.press(index);
+        }
+
+        return {
+          ...previous,
+          board: nextBoard,
+          moves: previous.moves + 1,
+          status: solved ? 'solved' : 'playing',
+          startTime: nextStartTime,
+          elapsedMs: now - nextStartTime,
+          timerOn: !solved,
+        };
+      });
+    },
+    [sound],
+  );
 
   const startNewGame = useCallback(() => {
     setShowSolution(false);

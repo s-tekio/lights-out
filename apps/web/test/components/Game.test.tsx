@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSolvableBoard } from '../../src/game/board';
 import { findDifficultyById } from '../../src/game/difficulty';
 import { Game } from '../../src/components/Game';
+import type { SoundEngine } from '../../src/sound/engine';
 
 function constantRandom(value: number): () => number {
   return () => value;
@@ -158,6 +159,40 @@ describe('Game', () => {
     fireEvent.click(getCell(presses[0] ?? 0, difficulty.boardSize));
 
     expect(screen.getByText(`Moves: ${presses.length}`)).toBeInTheDocument();
+  });
+
+  it('plays the press sound only when the board changes', () => {
+    const sound = {
+      isSupported: true,
+      start: vi.fn(),
+      stop: vi.fn(),
+      press: vi.fn(),
+      dispose: vi.fn(),
+    } satisfies SoundEngine;
+
+    render(<Game initialDifficultyId="easy" random={constantRandom(0)} sound={sound} />);
+
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    const firstIndex = presses[0] ?? 0;
+    fireEvent.click(getCell(firstIndex, difficulty.boardSize));
+    expect(sound.press).toHaveBeenCalledTimes(1);
+    expect(sound.press).toHaveBeenLastCalledWith(firstIndex);
+
+    for (const index of presses.slice(1)) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    const solvedPressCount = sound.press.mock.calls.length;
+
+    fireEvent.click(getCell(firstIndex, difficulty.boardSize));
+    expect(sound.press).toHaveBeenCalledTimes(solvedPressCount);
   });
 
   it('changing difficulty starts a new board of the selected size', () => {

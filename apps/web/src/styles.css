@@ -499,6 +499,37 @@ body {
   color: #f87171;
 }
 
+.sound-toggle {
+  position: fixed;
+  right: calc(0.75rem + env(safe-area-inset-right, 0rem));
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0rem));
+  z-index: 50;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-muted);
+  border-radius: 50%;
+  background-color: rgb(30 41 59 / 70%);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(0.25rem);
+}
+
+.sound-toggle:focus-visible {
+  outline: 0.1875rem solid var(--color-accent);
+  outline-offset: 0.125rem;
+}
+
+.sound-toggle[aria-pressed='true'] {
+  color: var(--color-accent);
+}
+
 /* Solution highlight on the board. A dashed outline keeps the cell's own
    lit/unlit surface unchanged, so the indicator does not rely on colour alone
    and remains distinguishable in greyscale or with colour vision deficiency. */

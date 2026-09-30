@@ -2,12 +2,15 @@ import { useRef, useState } from 'react';
 import { Game } from './components/Game';
 import { HelpDialog } from './components/HelpDialog';
 import { Leaderboard } from './components/Leaderboard';
+import { SoundToggle } from './components/SoundToggle';
+import { useSound } from './sound/useSound';
 import './styles.css';
 
 export default function App() {
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const helpTriggerRef = useRef<HTMLButtonElement>(null);
+  const { enabled, toggle, engine } = useSound();
 
   return (
     <div className="app">
@@ -25,11 +28,15 @@ export default function App() {
         </button>
       </header>
       <main className="app__main">
-        <Game onScoreSubmitted={() => setLeaderboardRefreshKey((previous) => previous + 1)} />
+        <Game
+          sound={engine}
+          onScoreSubmitted={() => setLeaderboardRefreshKey((previous) => previous + 1)}
+        />
       </main>
       <aside className="app__leaderboard" aria-label="Leaderboard">
         <Leaderboard refreshKey={leaderboardRefreshKey} />
       </aside>
+      <SoundToggle enabled={enabled} onToggle={toggle} />
       <HelpDialog
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
