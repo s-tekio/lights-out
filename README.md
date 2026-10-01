@@ -65,7 +65,7 @@ npm run clean          # remove build output and dependencies
 │   └── web/                 Vite + React game and leaderboard
 ├── docs/
 │   ├── api-contract.md      Frozen interface between web and api
-│   └── architecture.md      Components, flows and the planned AWS data model
+│   └── architecture.md      Components, flows and the DynamoDB data model
 ├── terraform/               Infrastructure as code for the AWS stack
 └── .github/workflows/ci.yml CI pipeline
 ```
@@ -89,6 +89,10 @@ They are required to talk to DynamoDB; no lighter substitute exists for that sea
 devDependency used to bundle the Lambda handler into a single `lambda.js`.
 
 ## Architecture
+
+The components and their connections are below, followed by the decision that produced them. The
+data model, the failure modes, the accepted trade-offs and what would come next are in
+[`docs/architecture.md`](docs/architecture.md).
 
 ### Diagram
 
