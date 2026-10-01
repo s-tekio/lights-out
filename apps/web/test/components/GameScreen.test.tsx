@@ -5,11 +5,8 @@ import type { SoundEngine } from '../../src/sound/engine';
 
 const mockSound: SoundEngine = {
   isSupported: true,
-  start: vi.fn(),
-  stop: vi.fn(),
   press: vi.fn(),
   dispose: vi.fn(),
-  setMusicEnabled: vi.fn(),
   setEffectsEnabled: vi.fn(),
 };
 

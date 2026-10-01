@@ -194,3 +194,73 @@ The user asked for a more authentic chip-music character through the techniques 
 ### What is deliberately not verified
 
 Nobody here can hear the result. jsdom has no Web Audio implementation and there is no headless browser here, so no test asserts the actual timbre of the pulse waves, the hardness of the envelopes, or the stepped vibrato. The tests pin the coefficient sets, the envelope constants, the quantisation bounds, the vibrato step pattern, the duty-cycle routing, and the scheduling calls; the audible character is reasoned about, not measured.
+
+## Iteration: replace synthesis with a licensed track
+
+The user supplied a real audio track to replace the synthesised music. The press blip stays
+synthesised; only the music is replaced.
+
+### Decisions
+
+| Decision | Chosen | Rationale |
+| --- | --- | --- |
+| Source file | `neon-overdrive-cyberpunk-gaming-edm.mp3` from the user's local directory | Supplied by the user, who states it is licensed for free use. |
+| Prepared file | 112 kbps stereo MP3 at 48 kHz, 184.392 seconds, loudness-normalised to I=-18 LUFS / TP=-1.5 / LRA=11 | Keeps the file small (~2.46 MB, 43 % of the original) without resampling; normalisation makes it sit naturally as background music. |
+| Storage | `apps/web/src/assets/audio/` as a module asset | Same pattern as the self-hosted font; Vite fingerprints the file at build time. |
+| Attribution | `ATTRIBUTION.md` next to the file, source URL marked pending | No author, source, URL, or licence name was invented. |
+| Music playback | `<audio>` element with `loop` | Streams the file instead of decoding three minutes of stereo PCM into memory. |
+| Music volume | Element volume 0.25 | The file is already loudness-normalised; 25 % is modest and keeps the music under the short press blip. |
+| Press sound | Kept in `engine.ts` as a Web Audio square-wave blip | The user only asked to replace the music; the blip is unchanged. |
+| Autoplay | Attempt on mount; swallow `NotAllowedError` and arm the gesture listener | Browsers block autoplay with sound until interaction, but a repeat visit may be allowed, and the fallback costs nothing. |
+| Accessibility | Music switches in Settings and the in-game menu provide a stop control | No new UI needed; noted for the record. |
+
+### What changed
+
+- Deleted `apps/web/src/sound/music.ts` and `apps/web/test/sound/music.test.ts`.
+  - Removed the note maths, loop schedule, pulse-wave coefficients, quantisation, vibrato,
+    percussion envelopes, and all of their tests.
+- Rewrote `apps/web/src/sound/engine.ts` as an effects-only engine.
+  - Removed the scheduler, lookahead, loop scheduling, music start/stop, and music enable flag.
+  - Kept `press()`, `dispose()`, `setEffectsEnabled()`, and the silent fallback.
+  - Simplified `SoundEngine` to effects-only methods.
+- Added `apps/web/src/sound/musicPlayer.ts`.
+  - `MusicPlayer` seam with `play()`, `pause()`, `dispose()`, `setEnabled()`.
+  - Imports the MP3 as a module asset and configures an `<audio>` element with `loop` and volume
+    `MUSIC_VOLUME = 0.25`.
+  - `handleMusicPlayRejection` swallows only `NotAllowedError` autoplay refusals.
+- Updated `apps/web/src/sound/useSound.ts`.
+  - Combines the injected (or default) `MusicPlayer` and `SoundEngine`.
+  - Attempts to play music on mount when enabled.
+  - Catches autoplay rejection silently and arms the existing first-gesture listener.
+  - Toggles music and effects independently, persisting each to `localStorage`.
+- Added `apps/web/test/sound/musicPlayer.test.ts` with a fake `HTMLAudioElement`.
+  - Covers element configuration, play, pause, disable, dispose, and `NotAllowedError` handling.
+- Updated `apps/web/test/sound/useSound.test.tsx`.
+  - Covers mount play attempt, autoplay rejection and gesture fallback, music toggle pause/resume,
+    effects toggle isolation, and independent persistence.
+- Updated `apps/web/test/sound/engine.test.ts` to the effects-only interface.
+- Updated `apps/web/test/components/Game.test.tsx` and `GameScreen.test.tsx` mock engines to the
+  effects-only interface.
+- Updated `apps/web/src/components/HelpDialog.tsx` wording from "arcade-style chiptune loop" to
+  "Background music".
+- Added `apps/web/src/assets/audio/neon-overdrive-cyberpunk-gaming-edm.mp3` and
+  `apps/web/src/assets/audio/ATTRIBUTION.md`.
+- Updated `README.md` with a one-line audio attribution matching the font attribution style.
+
+### Verification evidence
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | exit 0 |
+| `npm run format:check` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0; audio emitted as `dist/assets/neon-overdrive-cyberpunk-gaming-edm-b2GPYclW.mp3` (2 582 160 bytes) |
+| `npm run test:coverage --workspace apps/web` | exit 0, 247 tests passing |
+| No invented attribution | confirmed; `ATTRIBUTION.md` marks source URL as pending and names no author or licence |
+
+### What is deliberately not verified
+
+Nobody can hear the result in this environment, and no test can assert that the browser permitted
+autoplay on any given visit. The tests pin the seam, the play attempt, the rejection handling, the
+gesture fallback, the toggle behaviour, and the persistence; the actual audible playback can only be
+judged in a real browser.

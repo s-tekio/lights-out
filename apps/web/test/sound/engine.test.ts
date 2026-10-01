@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildLoopSchedule } from '../../src/sound/music';
 import {
   createSoundEngine,
   PRESS_PEAK_GAIN,
@@ -10,12 +9,10 @@ import {
 type FakeOscillator = {
   type: string;
   frequency: FakeAudioParam;
-  periodicWave: PeriodicWave | null;
   connect: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
-  setPeriodicWave: ReturnType<typeof vi.fn>;
 };
 
 type FakeGain = {
@@ -31,13 +28,6 @@ type FakeAudioParam = {
   exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
 };
 
-type FakeBufferSource = {
-  buffer: AudioBuffer | null;
-  connect: ReturnType<typeof vi.fn>;
-  start: ReturnType<typeof vi.fn>;
-  stop: ReturnType<typeof vi.fn>;
-};
-
 function createFakeAudioParam(): FakeAudioParam {
   return {
     value: 0,
@@ -50,7 +40,6 @@ function createFakeAudioParam(): FakeAudioParam {
 function createFakeAudioContext() {
   const oscillators: FakeOscillator[] = [];
   const gains: FakeGain[] = [];
-  const bufferSources: FakeBufferSource[] = [];
 
   const context = {
     state: 'suspended',
@@ -63,11 +52,6 @@ function createFakeAudioContext() {
       return Promise.resolve();
     }),
 
-    suspend: vi.fn().mockImplementation(function (this: typeof context) {
-      this.state = 'suspended';
-      return Promise.resolve();
-    }),
-
     close: vi.fn().mockImplementation(function (this: typeof context) {
       this.state = 'closed';
       return Promise.resolve();
@@ -77,18 +61,10 @@ function createFakeAudioContext() {
       const oscillator: FakeOscillator = {
         type: 'sine',
         frequency: createFakeAudioParam(),
-        periodicWave: null,
         connect: vi.fn().mockReturnThis(),
         disconnect: vi.fn(),
         start: vi.fn(),
         stop: vi.fn(),
-        setPeriodicWave: vi.fn().mockImplementation(function (
-          this: FakeOscillator,
-          wave: PeriodicWave,
-        ) {
-          this.periodicWave = wave;
-          this.type = 'custom';
-        }),
       };
       oscillators.push(oscillator);
       return oscillator;
@@ -103,34 +79,9 @@ function createFakeAudioContext() {
       gains.push(gain);
       return gain;
     }),
-
-    createBuffer: vi.fn().mockImplementation((channels: number, length: number, rate: number) => {
-      return {
-        length,
-        numberOfChannels: channels,
-        sampleRate: rate,
-        duration: length / rate,
-        getChannelData: vi.fn().mockReturnValue(new Float32Array(length)),
-      };
-    }),
-
-    createBufferSource: vi.fn().mockImplementation(() => {
-      const source: FakeBufferSource = {
-        buffer: null,
-        connect: vi.fn().mockReturnThis(),
-        start: vi.fn(),
-        stop: vi.fn(),
-      };
-      bufferSources.push(source);
-      return source;
-    }),
-
-    createPeriodicWave: vi.fn().mockImplementation((real: Float32Array, imag: Float32Array) => {
-      return { real, imag };
-    }),
   };
 
-  return { context, oscillators, gains, bufferSources };
+  return { context, oscillators, gains };
 }
 
 describe('engine', () => {
@@ -159,11 +110,8 @@ describe('engine', () => {
 
     const engine = createSoundEngine();
     expect(engine.isSupported).toBe(false);
-    expect(engine.start()).toBe(undefined);
-    expect(engine.stop()).toBe(undefined);
     expect(engine.press()).toBe(undefined);
     expect(engine.dispose()).toBe(undefined);
-    expect(engine.setMusicEnabled(false)).toBe(undefined);
     expect(engine.setEffectsEnabled(false)).toBe(undefined);
   });
 
@@ -201,35 +149,7 @@ describe('engine', () => {
       engine.dispose();
     });
 
-    it('resumes the context and starts scheduling on start', async () => {
-      engine.start();
-      expect(fake.context.resume).toHaveBeenCalledTimes(1);
-
-      await vi.advanceTimersByTimeAsync(50);
-      expect(fake.context.createOscillator).toHaveBeenCalled();
-      expect(fake.context.createGain).toHaveBeenCalled();
-    });
-
-    it('does not play notes until started', async () => {
-      await vi.advanceTimersByTimeAsync(100);
-      expect(fake.context.createOscillator).not.toHaveBeenCalled();
-    });
-
-    it('stops scheduling and suspends the context on stop', async () => {
-      engine.start();
-      await vi.advanceTimersByTimeAsync(50);
-      expect(fake.context.createOscillator).toHaveBeenCalled();
-
-      const callsBeforeStop = fake.context.createOscillator.mock.calls.length;
-      engine.stop();
-
-      await vi.advanceTimersByTimeAsync(200);
-      expect(fake.context.suspend).toHaveBeenCalledTimes(1);
-      expect(fake.context.createOscillator.mock.calls.length).toBe(callsBeforeStop);
-    });
-
     it('press creates a square oscillator with the same fixed frequency every time', () => {
-      engine.start();
       engine.press();
 
       const firstOscillator = fake.oscillators[fake.oscillators.length - 1];
@@ -248,7 +168,6 @@ describe('engine', () => {
     });
 
     it('press gain peaks at the configured value', () => {
-      engine.start();
       engine.press();
 
       const gain = fake.gains[fake.gains.length - 1];
@@ -262,95 +181,31 @@ describe('engine', () => {
       expect(peakCalls.length).toBeGreaterThan(0);
     });
 
-    it('dispose closes the context and stops scheduling', async () => {
-      engine.start();
-      await vi.advanceTimersByTimeAsync(50);
+    it('dispose closes the context', () => {
+      engine.press();
       engine.dispose();
 
       expect(fake.context.close).toHaveBeenCalledTimes(1);
-      const callsAfterDispose = fake.context.createOscillator.mock.calls.length;
-      await vi.advanceTimersByTimeAsync(200);
-      expect(fake.context.createOscillator.mock.calls.length).toBe(callsAfterDispose);
-    });
-
-    it('schedules a noise event with a buffer source', async () => {
-      const schedule = buildLoopSchedule();
-      const noiseEvent = schedule.events.find((event) => event.wave === 'noise');
-      expect(noiseEvent).toBeDefined();
-
-      engine.start();
-      await vi.advanceTimersByTimeAsync(100);
-      expect(fake.context.createBufferSource).toHaveBeenCalled();
-    });
-
-    it('schedules pulse events with a periodic wave when supported', async () => {
-      const schedule = buildLoopSchedule();
-      const pulseEvent = schedule.events.find((event) => event.wave === 'pulse');
-      expect(pulseEvent).toBeDefined();
-
-      engine.start();
-      await vi.advanceTimersByTimeAsync(100);
-      expect(fake.context.createPeriodicWave).toHaveBeenCalled();
-    });
-
-    it('falls back to a square oscillator when periodic waves are unavailable', async () => {
-      const schedule = buildLoopSchedule();
-      const pulseEvent = schedule.events.find((event) => event.wave === 'pulse');
-      expect(pulseEvent).toBeDefined();
-
-      fake.context.createPeriodicWave =
-        undefined as unknown as typeof fake.context.createPeriodicWave;
-      engine.start();
-      await vi.advanceTimersByTimeAsync(100);
-
-      const pulseOscillator = fake.oscillators.find((oscillator) => oscillator.type === 'square');
-      expect(pulseOscillator).toBeDefined();
     });
 
     it('skips press when effects are disabled', () => {
-      engine.start();
       engine.setEffectsEnabled(false);
       engine.press();
       expect(fake.context.createOscillator).not.toHaveBeenCalled();
     });
 
     it('re-enables press when effects are turned back on', () => {
-      engine.start();
       engine.setEffectsEnabled(false);
       engine.setEffectsEnabled(true);
       engine.press();
       expect(fake.context.createOscillator).toHaveBeenCalled();
     });
-
-    it('skips start when music is disabled', async () => {
-      engine.setMusicEnabled(false);
-      engine.start();
-      expect(fake.context.resume).not.toHaveBeenCalled();
-      await vi.advanceTimersByTimeAsync(100);
-      expect(fake.context.createOscillator).not.toHaveBeenCalled();
-    });
-
-    it('stops the loop when music is disabled while running', async () => {
-      engine.start();
-      await vi.advanceTimersByTimeAsync(50);
-      expect(fake.context.createOscillator).toHaveBeenCalled();
-
-      const callsBefore = fake.context.createOscillator.mock.calls.length;
-      engine.setMusicEnabled(false);
-
-      await vi.advanceTimersByTimeAsync(200);
-      expect(fake.context.createOscillator.mock.calls.length).toBe(callsBefore);
-      expect(fake.context.suspend).toHaveBeenCalledTimes(1);
-    });
   });
 
   it('silent engine is a frozen no-op', () => {
     expect(silentSoundEngine.isSupported).toBe(false);
-    expect(silentSoundEngine.start()).toBe(undefined);
-    expect(silentSoundEngine.stop()).toBe(undefined);
     expect(silentSoundEngine.press()).toBe(undefined);
     expect(silentSoundEngine.dispose()).toBe(undefined);
-    expect(silentSoundEngine.setMusicEnabled(false)).toBe(undefined);
     expect(silentSoundEngine.setEffectsEnabled(false)).toBe(undefined);
   });
 });

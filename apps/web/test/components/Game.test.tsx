@@ -177,11 +177,8 @@ describe('Game', () => {
   it('plays the press sound only when the board changes', () => {
     const sound = {
       isSupported: true,
-      start: vi.fn(),
-      stop: vi.fn(),
       press: vi.fn(),
       dispose: vi.fn(),
-      setMusicEnabled: vi.fn(),
       setEffectsEnabled: vi.fn(),
     } satisfies SoundEngine;
 

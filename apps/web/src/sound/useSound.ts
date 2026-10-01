@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSoundEngine, type SoundEngine } from './engine.ts';
+import {
+  createMusicPlayer,
+  handleMusicPlayRejection,
+  silentMusicPlayer,
+  type MusicPlayer,
+} from './musicPlayer.ts';
 
 const MUSIC_STORAGE_KEY = 'lights-out:musicEnabled';
 const EFFECTS_STORAGE_KEY = 'lights-out:effectsEnabled';
@@ -30,23 +36,30 @@ export type SoundControls = {
   readonly engine: SoundEngine;
 };
 
-export function useSound(injectedEngine?: SoundEngine): SoundControls {
-  const engineRef = useRef<SoundEngine>(injectedEngine ?? createSoundEngine());
+export type SoundDependencies = {
+  readonly music?: MusicPlayer;
+  readonly effects?: SoundEngine;
+};
+
+export function useSound(deps: SoundDependencies = {}): SoundControls {
+  const musicRef = useRef<MusicPlayer>(deps.music ?? createMusicPlayer());
+  const effectsRef = useRef<SoundEngine>(deps.effects ?? createSoundEngine());
   const [musicEnabled, setMusicEnabled] = useState(() => readStoredFlag(MUSIC_STORAGE_KEY));
   const [effectsEnabled, setEffectsEnabled] = useState(() => readStoredFlag(EFFECTS_STORAGE_KEY));
   const gestureStartedRef = useRef(false);
+  const autoplayAttemptedRef = useRef(false);
 
   const toggleMusic = useCallback(() => {
     setMusicEnabled((previous) => {
       const next = !previous;
       writeStoredFlag(MUSIC_STORAGE_KEY, next);
 
-      const engine = engineRef.current;
-      engine.setMusicEnabled(next);
+      const music = musicRef.current;
+      music.setEnabled(next);
       if (next) {
-        void engine.start();
+        void music.play().catch(handleMusicPlayRejection);
       } else {
-        engine.stop();
+        music.pause();
       }
 
       return next;
@@ -57,10 +70,22 @@ export function useSound(injectedEngine?: SoundEngine): SoundControls {
     setEffectsEnabled((previous) => {
       const next = !previous;
       writeStoredFlag(EFFECTS_STORAGE_KEY, next);
-      engineRef.current.setEffectsEnabled(next);
+      effectsRef.current.setEffectsEnabled(next);
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (!musicEnabled || autoplayAttemptedRef.current) {
+      return;
+    }
+    autoplayAttemptedRef.current = true;
+
+    // Browsers block autoplay with sound until the user has interacted with the
+    // site, so this attempt will often reject. It is still worth trying because
+    // a repeat visit may be allowed, and the gesture fallback costs nothing.
+    void musicRef.current.play().catch(handleMusicPlayRejection);
+  }, [musicEnabled]);
 
   useEffect(() => {
     if (!musicEnabled || gestureStartedRef.current) {
@@ -72,7 +97,7 @@ export function useSound(injectedEngine?: SoundEngine): SoundControls {
         return;
       }
       gestureStartedRef.current = true;
-      void engineRef.current.start();
+      void musicRef.current.play().catch(handleMusicPlayRejection);
     };
 
     window.addEventListener('pointerdown', startOnGesture, { once: true });
@@ -85,9 +110,11 @@ export function useSound(injectedEngine?: SoundEngine): SoundControls {
   }, [musicEnabled]);
 
   useEffect(() => {
-    const engine = engineRef.current;
+    const music = musicRef.current;
+    const effects = effectsRef.current;
     return () => {
-      engine.dispose();
+      music.dispose();
+      effects.dispose();
     };
   }, []);
 
@@ -96,6 +123,8 @@ export function useSound(injectedEngine?: SoundEngine): SoundControls {
     effectsEnabled,
     toggleMusic,
     toggleEffects,
-    engine: engineRef.current,
+    engine: effectsRef.current,
   };
 }
+
+export { silentMusicPlayer };

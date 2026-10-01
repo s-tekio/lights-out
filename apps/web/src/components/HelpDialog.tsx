@@ -42,9 +42,9 @@ export function HelpDialog({ isOpen, onClose, triggerRef }: HelpDialogProps) {
             press, not when the page loads.
           </p>
           <p>
-            An arcade-style chiptune loop plays while music is on, and every press that changes the
-            board plays a short blip. Music and effects can be turned on or off separately; the
-            choices are remembered for your next visit.
+            Background music plays while music is on, and every press that changes the board plays a
+            short blip. Music and effects can be turned on or off separately; the choices are
+            remembered for your next visit.
           </p>
           <p>
             After you solve a board, the game can show how many presses the optimal solution needed
