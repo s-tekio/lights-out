@@ -161,7 +161,7 @@ every mistyped name emits an error-level log makes any CloudWatch alarm on error
 | Property | How it is achieved |
 | --- | --- |
 | No secrets in the application | There are none to hold. No database credentials, no API keys. IAM grants the Lambda access to DynamoDB, so nothing is stored in configuration. |
-| Least privilege (planned) | One role per Lambda, scoped to the `scores` table and its indexes, with explicit actions on explicit ARNs. No wildcards, no `*FullAccess` managed policies. |
+| Least privilege | Intended: one role per Lambda, scoped to the `scores` table and its indexes, explicit actions on explicit ARNs, no wildcards, no `*FullAccess` managed policy. **What the deployed stack does instead:** the lab account denies IAM management, so the function reuses the pre-existing execution role as it is, and its permissions may be broader than that. Closing the gap needs an account that allows creating roles. |
 | Encryption in transit | CloudFront serves HTTPS only; plain HTTP is redirected. |
 | Encryption at rest | DynamoDB encrypts at rest by default; S3 uses SSE. |
 | Input validation | Player names pass an allow-list; numbers are bounded and integer-checked. This happens server-side, so a modified client changes nothing. |
@@ -213,6 +213,7 @@ Recorded here so they are visible rather than discovered later.
 | The ranking API cannot verify that a game was actually solved. A client can report a plausible `moves` / `elapsedMs` pair. | The leaderboard is not trustworthy against a determined cheater. Server-side points computation removes arbitrary score injection, not result fabrication. |
 | The in-memory score repository does not survive a process restart. | Expected in local development. Production uses the DynamoDB adapter. |
 | No authentication. Player names are self-declared and unverified. | Anyone can submit under any name. |
+| The account caps Lambda concurrency at 10. | A burst above that is throttled rather than scaled, and the API answers 5xx. Raising it needs a quota increase or provisioned concurrency, neither of which the lab account allows. |
 
 ### Accepted trade-offs
 
@@ -226,3 +227,20 @@ Recorded here so they are visible rather than discovered later.
 The fixes that came out of the scanning exercise stay: SNS topic encryption and API Gateway throttling are real improvements and are not reverted.
 
 `tflint` had reported zero findings since it was wired up, while costing a plugin download and two extra steps per run. The baseline checks cover what mattered in practice.
+
+## Future improvements
+
+Ordered by what would matter most rather than by effort.
+
+1. **Server-issued puzzles.** The API cannot verify that a game was played, so a client can report
+   any plausible `moves` and `elapsedMs` pair. Sending the board from the server and validating the
+   submitted solution closes it, and it is the only change that makes the leaderboard trustworthy
+   against a determined player.
+2. **Credentials for the pipeline that do not expire.** The deploy job authenticates with the lab
+   session's temporary credentials, so a stale token fails the checks for a reason unrelated to the
+   change. OIDC would replace three repository secrets with a handful of workflow lines.
+3. **A Lambda concurrency quota above ten**, or provisioned concurrency, so a burst scales instead
+   of throttling.
+4. **A scoring curve without a flat top.** Both factors are capped, so two genuinely different
+   performances can score identically. Making the maximum asymptotic is a product decision rather
+   than a technical one.

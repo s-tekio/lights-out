@@ -107,6 +107,10 @@ flowchart LR
   BUD["AWS Budgets"] --> SNS
 ```
 
+There is no VPC, no subnet and no load balancer above, because none of them exist here: every
+component is managed and reached over HTTPS, so the network layer belongs to AWS rather than to
+this project. The alternatives section records what drawing one would have cost.
+
 Request flow for a score submission:
 
 1. The browser POSTs to `/api/scores` on the CloudFront domain.
