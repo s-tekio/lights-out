@@ -121,17 +121,6 @@ Request flow for a score submission:
 **Chosen: serverless.** S3 + CloudFront for the frontend, API Gateway HTTP API + Lambda for the
 ranking API, DynamoDB on demand for storage.
 
-#### What the product actually demands
-
-A reading-heavy product rewards caching and read scaling. Lights Out has the opposite profile:
-
-- **Spiky, low-volume traffic.** A handful of players, bursts when a link is shared, then nothing.
-- **Tiny writes.** One score record per finished game, tens of bytes.
-- **Small, ordered reads.** The leaderboard is at most a hundred rows.
-- **Idle most of the time.** The expensive thing to pay for is capacity nobody uses.
-
-That profile punishes provisioned, always-on infrastructure and rewards per-request billing.
-
 #### Alternatives considered and why they were rejected
 
 | Alternative | Why it was rejected |
