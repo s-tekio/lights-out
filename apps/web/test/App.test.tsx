@@ -25,6 +25,28 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /New Game/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Leaderboard/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Settings/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /How to play/i })).toBeInTheDocument();
+  });
+
+  it('opens the help dialog from the title screen', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /How to play/i }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /How to play/i })).toBeInTheDocument();
+  });
+
+  it('returns focus to the How to play button when the help dialog closes', () => {
+    render(<App />);
+
+    const helpButton = screen.getByRole('button', { name: /How to play/i });
+    fireEvent.click(helpButton);
+
+    fireEvent.click(screen.getByRole('button', { name: /Close/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(helpButton).toHaveFocus();
   });
 
   it('navigates from the title to the difficulty screen', () => {

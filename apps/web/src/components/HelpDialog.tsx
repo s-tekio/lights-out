@@ -1,4 +1,6 @@
 import { DIFFICULTIES, formatDifficultyLabel } from '../game/difficulty';
+import { HELP_EXAMPLES } from '../game/helpExamples';
+import { BoardExample } from './BoardExample';
 import { Modal } from './Modal';
 
 type HelpDialogProps = {
@@ -21,8 +23,13 @@ export function HelpDialog({ isOpen, onClose, triggerRef }: HelpDialogProps) {
         <section>
           <h3>The rules</h3>
           <p>
-            Pressing a cell toggles that cell and its four orthogonal neighbours. The goal is to
-            switch every light off. Every board is generated so it has a solution.
+            Pressing a cell always toggles that cell and its four orthogonal neighbours. A corner
+            cell has two neighbours and an edge cell has three, so pressing a corner changes three
+            cells rather than five.
+          </p>
+          <p>
+            The goal is to switch every light off. When every cell is dark, the board is solved.
+            Every board is generated so it has a solution.
           </p>
           <p>Guaranteed minimum presses per level:</p>
           <ul>
@@ -32,6 +39,13 @@ export function HelpDialog({ isOpen, onClose, triggerRef }: HelpDialogProps) {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section>
+          <h3>Worked examples</h3>
+          {HELP_EXAMPLES.map((example) => (
+            <BoardExample key={example.id} example={example} />
+          ))}
         </section>
 
         <section>

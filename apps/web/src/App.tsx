@@ -1,6 +1,7 @@
-import { useReducer, useState } from 'react';
+import { useReducer, useRef, useState } from 'react';
 import { DifficultyScreen } from './components/DifficultyScreen';
 import { GameScreen } from './components/GameScreen';
+import { HelpDialog } from './components/HelpDialog';
 import { LeaderboardScreen } from './components/LeaderboardScreen';
 import { SettingsScreen } from './components/SettingsScreen';
 import { Starfield } from './components/Starfield';
@@ -12,6 +13,8 @@ import './styles.css';
 export default function App() {
   const [view, dispatch] = useReducer(viewReducer, { kind: 'title' });
   const [leaderboardRefreshKey, setLeaderboardRefreshKey] = useState(0);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const helpTriggerRef = useRef<HTMLButtonElement>(null);
   const { engine, musicEnabled, effectsEnabled, toggleMusic, toggleEffects } = useSound();
 
   const showBack =
@@ -36,6 +39,8 @@ export default function App() {
             onNewGame={() => dispatch({ type: 'goToDifficulty' })}
             onLeaderboard={() => dispatch({ type: 'goToLeaderboard' })}
             onSettings={() => dispatch({ type: 'goToSettings' })}
+            onHowToPlay={() => setIsHelpOpen(true)}
+            helpTriggerRef={helpTriggerRef}
           />
         )}
         {view.kind === 'difficulty' && (
@@ -68,6 +73,11 @@ export default function App() {
           />
         )}
       </main>
+      <HelpDialog
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        triggerRef={helpTriggerRef}
+      />
     </div>
   );
 }
