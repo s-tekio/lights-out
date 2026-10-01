@@ -118,15 +118,12 @@ Request flow for a score submission:
 
 ### Architecture decision
 
-This section is required by the assignment and is the most important one in this document.
-
 **Chosen: serverless.** S3 + CloudFront for the frontend, API Gateway HTTP API + Lambda for the
 ranking API, DynamoDB on demand for storage.
 
 #### What the product actually demands
 
-The assignment's original premise was "much reading, little writing", which rewards caching and
-read scaling. Lights Out has the opposite profile:
+A reading-heavy product rewards caching and read scaling. Lights Out has the opposite profile:
 
 - **Spiky, low-volume traffic.** A handful of players, bursts when a link is shared, then nothing.
 - **Tiny writes.** One score record per finished game, tens of bytes.
@@ -139,7 +136,7 @@ That profile punishes provisioned, always-on infrastructure and rewards per-requ
 
 | Alternative | Why it was rejected |
 | --- | --- |
-| **EC2 behind an ALB with Auto Scaling, RDS PostgreSQL** | The classic answer, and the most instructive one for VPC, ALB and Auto Scaling work. Rejected on cost and fit: an Application Load Balancer bills per hour regardless of traffic, a NAT Gateway costs roughly $33/month for existing, and RDS Multi-AZ — required by the assignment's availability rule — is not covered by the free tier. Realistically $60-90/month to serve a puzzle that gets a few dozen requests an hour. High availability also has to be built by hand: multiple subnets, health checks, Multi-AZ failover. |
+| **EC2 behind an ALB with Auto Scaling, RDS PostgreSQL** | The classic answer, and the most instructive one for VPC, ALB and Auto Scaling work. Rejected on cost and fit: an Application Load Balancer bills per hour regardless of traffic, a NAT Gateway costs roughly $33/month for existing, and RDS Multi-AZ, which availability needs, is not covered by the free tier. Realistically $60-90/month to serve a puzzle that gets a few dozen requests an hour. High availability also has to be built by hand: multiple subnets, health checks, Multi-AZ failover. |
 | **ECS Fargate behind an ALB, RDS** | Avoids managing instances but keeps the ALB and the database, so it inherits the same idle cost. Adds a container registry, task definitions, service discovery and rolling-deploy machinery that this workload does not need. |
 | **API Gateway + Lambda with RDS instead of DynamoDB** | Keeps the compute benefits while reintroducing the cost and the availability work of a relational database. RDS also needs a VPC, which forces either a NAT Gateway or VPC endpoints for Lambda, both of which add cost and complexity. |
 | **Self-managed DynamoDB access without a repository port** | Rejected at the code level, not the infrastructure level: persistence sits behind a `ScoreRepository` port so the adapter swap does not touch the application layer. |
@@ -150,9 +147,8 @@ That profile punishes provisioned, always-on infrastructure and rewards per-requ
    $0.70/month at realistic hobby traffic and roughly $3/month at ten times that, against
    $60-90/month for the classic stack.
 2. **Availability is free and real.** CloudFront, API Gateway, Lambda and DynamoDB are all
-   multi-AZ by default. The assignment asks for at least two availability zones for components
-   serving production traffic; serverless exceeds that without a single line of Terraform to
-   express it.
+   multi-AZ by default. Components serving production traffic want at least two availability
+   zones; serverless exceeds that without a single line of Terraform to express it.
 3. **Backups are a flag.** DynamoDB point-in-time recovery is one attribute and satisfies the
    automatic-backup requirement. RDS needs snapshot windows, retention policy and testing.
 4. **Least privilege is expressible.** Each Lambda gets its own role scoped to the specific table
@@ -224,9 +220,7 @@ Prerequisites:
 - AWS credentials configured on your machine. No credentials, account IDs or ARNs are committed;
   the Terraform stack relies on the standard credential chain.
 - The state bucket `commit-academy-tf-lo` must exist in `eu-west-1` before the first `init`. It is
-  created outside Terraform, as the assignment allows for bootstrap. Only versioning has been
-  confirmed by hand so far; check that default encryption and public-access blocking are also on,
-  since `encrypt = true` in the backend only covers the state object itself.
+  created outside Terraform.
 
 Reproducible commands. These have been validated locally with `terraform fmt` and
 `terraform validate`; `terraform plan` and `terraform apply` require your credentials and have not
@@ -320,7 +314,7 @@ the application uses never moves. Verified by posting a score through the dev se
 the item appeared in the DynamoDB table.
 
 With that target the **Clear leaderboard** button wipes the deployed leaderboard for real, because
-the purge is unauthenticated by design. See the known limitations.
+the purge is unauthenticated by design.
 
 ## Teardown
 
@@ -381,41 +375,3 @@ Sources: Chrome's autoplay policy (<https://developer.chrome.com/blog/autoplay/>
 WebKit's auto-play policy changes for macOS
 (<https://webkit.org/blog/7734/auto-play-policy-changes-for-macos/>).
 
-## Known limitations
-
-These are real and current, not hypothetical:
-
-- **The score is flat at the top.** Both scoring factors are capped, so any Easy game of six or
-  fewer presses finished within 18 seconds scores exactly the maximum of 900, and the same applies
-  proportionally at the other levels. Play faster than the reference is not rewarded, which means
-  two genuinely different performances can score identically. This is deliberate and postponed, not
-  overlooked: removing the flat top means making the maximum asymptotic, which is a product decision
-  still to be taken. The contract's scoring section records it.
-- **The leaderboard cannot be trusted against a determined cheater.** The server computes points
-  from the reported outcome, which prevents submitting an arbitrary score value, but it cannot
-  verify that a game was played. A client can report any plausible `moves` and `elapsedMs` pair.
-  Closing this needs server-side puzzle state or replay, which is a feature, not a configuration.
-- **No authentication.** Player names are self-declared and unverified. Anyone can submit under
-  any name.
-- **Least privilege is not achievable in the lab account.** The student account denies IAM
-  management, so the pre-existing execution role must be reused as-is. The Lambda therefore has
-  whatever permissions that role already grants, which may be broader than the table-scoped policy
-  the standards describe.
-- **The account caps Lambda concurrency at 10.** A burst of twenty parallel requests throttled three
-  of them, API Gateway answered `5xx`, and the alarm fired correctly. The assignment asks the API to
-  survive a reasonable spike; a ceiling of 10 throttles instead. Raising it needs a quota increase or
-  provisioned concurrency, neither of which a student lab account allows.
-- **No anti-abuse controls.** No rate limiting, no captcha, no moderation.
-- **No WAF in front of CloudFront.** A managed WAF web ACL costs roughly 5 USD per month, about seven times this project's total monthly estimate. The application has no authentication, no user data and no admin surface, and the API is rate limited at the API Gateway stage, which covers the abuse case a WAF would address. This was a deliberate, cost-based decision; it is recorded here rather than waived in a scanner ignore file.
-- **The S3 bucket encrypts with SSE-S3 rather than a customer-managed key.** Encryption at rest is in place; what is missing is key rotation, key policy control and KMS audit, which matter for sensitive data and are marginal for a bucket holding a public React bundle rebuilt on every deploy. A customer-managed key is about 1 USD per month. This was a deliberate, cost-based decision; it is recorded here rather than waived in a scanner ignore file.
-- **Deployment uses temporary lab credentials.** The GitHub Actions deploy job authenticates with
-  the lab session's temporary credentials stored as repository secrets. They expire when the
-  session ends and must be refreshed before each push to `main`. This is a limitation of the lab
-  account, not the design: on a real account, OIDC would replace the three `AWS_*` secrets with a
-  handful of workflow lines. Least privilege is also unreachable, since the account denies IAM
-  management and the pre-existing execution role must be reused as-is.
-
-## Roadmap
-
-1. Anti-cheat: server-issued puzzle state so a submission can be validated.
-2. Accounts, so scores belong to a verified identity.

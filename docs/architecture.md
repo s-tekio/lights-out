@@ -126,7 +126,7 @@ disappears and the reveal is purely informative.
 
 This also does not change the security posture. The solution is already derivable from the client
 today, because the scramble lives there. Verifying that a game was actually played still requires
-server-issued puzzles, exactly as the known limitations say.
+server-issued puzzles.
 
 ## DynamoDB data model
 
@@ -243,8 +243,7 @@ every mistyped name emits an error-level log makes any CloudWatch alarm on error
 | No public data exposure | The S3 bucket is private and served only through CloudFront with an origin access control. |
 
 Known gaps, stated rather than implied: **no authentication**, **no rate limiting**, and **no
-ability to verify that a submitted game was actually played**. All three are listed in the README's
-known limitations and roadmap.
+ability to verify that a submitted game was actually played**.
 
 ## Local and production parity
 

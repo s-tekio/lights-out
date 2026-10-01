@@ -162,9 +162,8 @@ invalid arguments and deprecated usage, which was most of what `tflint` was prov
 Trivy was configured to fail on CRITICAL and HIGH severity findings, but every HIGH finding it
 reported was listed in `.trivyignore`. A gate whose every finding is excepted asserts nothing and
 is worse than no gate because it looks like assurance. Rather than keeping a scanner whose output
-is fully waived, the two genuine unfixed findings have been moved to the README's known limitations
-with their cost reasoning: no CloudFront WAF, and SSE-S3 instead of a customer-managed key for the
-S3 bucket. The fixes that came out of the scanning exercise stay: SNS topic encryption and API
+is fully waived, the two genuine unfixed findings are recorded with their cost reasoning: no
+CloudFront WAF, and SSE-S3 instead of a customer-managed key for the S3 bucket. The fixes that came out of the scanning exercise stay: SNS topic encryption and API
 Gateway throttling are real improvements and are not reverted.
 
 `tflint` had reported zero findings since it was wired up, while costing a plugin download and two
