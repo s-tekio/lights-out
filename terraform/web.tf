@@ -64,14 +64,30 @@ locals {
   # Content types for the files vite emits. Browsers reject assets served with
   # the wrong type, so every uploaded object must declare one.
   web_content_types = {
-    "html" = "text/html"
-    "js"   = "application/javascript"
-    "css"  = "text/css"
-    "svg"  = "image/svg+xml"
-    "png"  = "image/png"
-    "ico"  = "image/x-icon"
-    "json" = "application/json"
+    "html"  = "text/html"
+    "js"    = "application/javascript"
+    "css"   = "text/css"
+    "svg"   = "image/svg+xml"
+    "png"   = "image/png"
+    "ico"   = "image/x-icon"
+    "json"  = "application/json"
+    "mp3"   = "audio/mpeg"
+    "woff2" = "font/woff2"
   }
+
+  # A fallback of application/octet-stream is silent, and silence is how the two
+  # entries above came to be missing: the objects deployed as generic bytes and
+  # nothing said so. Collect the extensions the build emitted that have no entry,
+  # including files with no extension at all, so the precondition below can fail
+  # the plan and name them instead.
+  web_file_extensions = toset([
+    for file in local.web_dist_files : try(regex("\\.([^.]+)$", file)[0], "")
+  ])
+
+  web_unknown_extensions = toset([
+    for extension in local.web_file_extensions : extension
+    if !contains(keys(local.web_content_types), extension)
+  ])
 }
 
 resource "aws_s3_object" "web" {
@@ -87,6 +103,13 @@ resource "aws_s3_object" "web" {
     regex("\\.([^.]+)$", each.value)[0],
     "application/octet-stream"
   )
+
+  lifecycle {
+    precondition {
+      condition     = length(local.web_unknown_extensions) == 0
+      error_message = "The build emitted file types with no content type declared: ${join(", ", local.web_unknown_extensions)}. Add each one to local.web_content_types in terraform/web.tf, or it would ship as application/octet-stream."
+    }
+  }
 
   # index.html must never be cached by the browser because it references the
   # hashed asset filenames, which change on every build. Hashed assets under
