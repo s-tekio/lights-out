@@ -134,7 +134,7 @@ Response `200 OK`:
 applied to the query, including any resolved defaults.
 
 The change is additive and backwards compatible: omitting both `sort` and `order` reproduces the
-previous behaviour exactly (`points` descending).
+default behaviour exactly (`points` descending).
 
 ## Error shape
 
@@ -223,7 +223,7 @@ true efficiency ratio. The constants live in `apps/api/src/domain/score.ts`.
 
 ### Why the formula changed
 
-The previous formula was a fixed base minus unbounded linear penalties, clamped with `max(0, …)`:
+Initially, the formula was a fixed base minus unbounded linear penalties, clamped with `max(0, …)`:
 
 ```
 points = max(0, round(base - max(0, moves - parMoves) * 25 - floor(elapsedMs / 1000) * 5))
@@ -273,9 +273,8 @@ ordering, and it does not change when the list is later read with a different `s
 
 ### Sortable dimensions and natural direction
 
-Each leaderboard column has a **natural direction**. In that direction the full ordering is exactly
-the one used for `rank` when the column is the leading one. The opposite direction is the **exact
-mirror** of the natural one, including the tiebreakers.
+Each column has a **natural direction** and an exact mirror. The natural ordering for `points` is
+descending; for `elapsedMs` and `playerName` it is ascending.
 
 | Sort column | Natural direction | Natural ordering | Mirror ordering |
 | --- | --- | --- | --- |
@@ -283,32 +282,19 @@ mirror** of the natural one, including the tiebreakers.
 | `elapsedMs` | ascending | `elapsedMs` asc, then `createdAt` asc, then `id` asc | `elapsedMs` desc, then `createdAt` desc, then `id` desc |
 | `playerName` | ascending | normalized name asc, then original name asc, then `createdAt` asc, then `id` asc | normalized name desc, then original name desc, then `createdAt` desc, then `id` desc |
 
-The reason is mechanical, not stylistic. DynamoDB stores each sort dimension in a single
-lexicographic sort key. A `Query` can read that key forward (`ScanIndexForward = true`) or backward
-(`ScanIndexForward = false`), but it cannot reverse only the leading component while leaving the
-remaining components ascending. Reversing the whole key gives the exact mirror, so that is the
-guarantee the contract makes.
+The reason is mechanical: DynamoDB stores each sort dimension in a single lexicographic sort key.
+A `Query` can read that key forward or backward, but it cannot reverse only the leading component.
+Reversing the whole key gives the exact mirror, including the tiebreakers, and that is the
+guarantee the contract makes. `points` therefore uses an inverted leading component in the sort
+key; the other dimensions are stored ascending.
 
-Because the natural direction for `points` is descending, its sort key is encoded with an inverted
-leading component (`pad6(999999 - points)`). Reading that key forward therefore returns the highest
-score first. The other dimensions use an ascending leading component and read forward for their
-natural ascending order.
-
-`playerName` ordering is case-insensitive. The natural order is: normalized (lowercased) name
-ascending, then the original name ascending, then `createdAt` ascending, then `id` ascending. Its
-mirror reverses every component. This matters because the DynamoDB adapter stores a normalized
-attribute to reproduce the same order cheaply.
-
-**String comparisons are by UTF-16 code unit, not locale collation.** This is not a detail.
-`localeCompare` depends on the ambient locale, so the same data could order differently on a
-workstation than in a Lambda runtime, and the DynamoDB adapter cannot reproduce locale collation
-without a precomputed collation key. Code-unit order is defined and reproducible on both sides. Its
-visible consequence is that inside a case-insensitive group `Ana` sorts before `ana`, because `A`
-(U+0041) precedes `a` (U+0061).
+`playerName` is case-insensitive; the adapter stores a normalized attribute to reproduce the same
+order. String comparisons use UTF-16 code units, not locale collation, so the ordering is
+reproducible on both client and server.
 
 ## Known limitation
 
 The API cannot verify that a game was actually solved. A client can report any plausible
 `moves` / `elapsedMs` pair. Server-side score computation removes the ability to submit an
-arbitrary point value, but not the ability to lie about the game. Anti-cheat is listed as future
-work in the README rather than pretended to exist.
+arbitrary point value, but not the ability to lie about the game. Anti-cheat is not implemented;
+the contract records the current limitation rather than pretending it exists.

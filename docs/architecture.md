@@ -92,42 +92,6 @@ The consequence for the DynamoDB adapter is that every read path the UI can reac
 real access pattern. A sortable column is not a display concern: it is a query, and it needs a key
 or an index to be efficient. That is recorded in the data model below.
 
-## Optimal solution, computed on the client
-
-After a player solves a board the game can reveal how many presses the optimal solution needs, and
-which cells it uses. That computation runs entirely in the browser and needs no request.
-
-The trick is that the **client generated the board**, so it already knows a solution: the scramble
-press set `S` returned by `createSolvableBoard`. Every solution of the board lies in the coset
-`S + ker(A)` over GF(2), so
-
-```
-optimal presses = min over v in ker(A) of |S Δ v|
-optimal plan    = the coset representative that achieves it
-```
-
-There is no search. The kernel is a property of the board **size**, not of the board, so it is
-computed once with Gauss-Jordan elimination over GF(2) and cached. Its dimensions are 0 for 3×3, 2
-for 5×5 and 0 for 7×7, so there are at most four candidates to compare. The kernel cannot be skipped:
-it lowers the minimum on some 5×5 boards, so ignoring it would display a wrong optimum.
-
-Two things are worth remembering about this code:
-
-- **`BigInt` is mandatory.** A 7×7 board has 49 cells and JavaScript bitwise operators truncate to 32
-  bits. This is the same trap that produced the silent bug in `solver.ts`, and it would reappear here
-  with `number` masks.
-- **It only works while the client knows how the board was generated.** If the server ever issues
-  puzzles, this derivation moves with it. It is recorded here so that change is not a surprise.
-
-Why this is a good place for the feature: the optimal solution is a **plan**, not a suggestion.
-Pressing a cell outside the optimal set makes the board require one more press, so a hint shown
-during play can leave a player worse off than not looking. After the game is over that requirement
-disappears and the reveal is purely informative.
-
-This also does not change the security posture. The solution is already derivable from the client
-today, because the scramble lives there. Verifying that a game was actually played still requires
-server-issued puzzles.
-
 ## DynamoDB data model
 
 The table is implemented in `terraform/dynamodb.tf` and mirrored by the DynamoDB Local integration
@@ -148,10 +112,11 @@ the ordering is encoded into the key with inverted components.
 | GSI `by-time-board` | PK `boardScope`, SK `timeKey` |
 | GSI `by-player-board` | PK `boardScope`, SK `playerKey` |
 
-Each score is stored as **one item**. The item carries both `allScope` and `boardScope`, and the
-six GSIs provide every query path. There are two query shapes (all scores vs. one board size)
-times three sort dimensions (`points`, `elapsedMs`, `playerName`). Direction is handled by
-`ScanIndexForward`, not by extra indexes.
+Each score is stored as **one item**. A single `PutItem` is atomic by construction, so the write
+needs no transaction. The item carries both `allScope` and `boardScope`, and the six GSIs provide
+every query path. There are two query shapes (all scores vs. one board size) times three sort
+dimensions (`points`, `elapsedMs`, `playerName`). Direction is handled by `ScanIndexForward`, not
+by extra indexes.
 
 ### Partition note
 
@@ -161,16 +126,6 @@ sharded without breaking global ordering. The three `board`-scoped indexes are s
 size. A single DynamoDB partition caps at roughly 3 000 read capacity units and 1 000 write
 capacity units per second. That ceiling is irrelevant at this scale and a real constraint at much
 larger ones.
-
-### Why there is no transaction
-
-`save` uses a single `PutItem`. The previous design stored each score as two items (one global copy
-and one per-board copy) and needed `TransactWriteItems` to keep them consistent. The Lambda
-execution role is explicitly scoped to `GetItem`, `PutItem`, `UpdateItem`, `DeleteItem`,
-`BatchGetItem`, `BatchWriteItem`, `Query`, `Scan`, `DescribeTable`, `ListTables` and
-`ConditionCheckItem`; `TransactWriteItems` is not included, and IAM management is denied in this
-environment so the policy cannot be extended. Storing one item removes the consistency problem
-entirely: a single `PutItem` is atomic by construction, so the missing permission no longer matters.
 
 ### Sort-key encodings
 
@@ -183,35 +138,6 @@ entirely: a single `PutItem` is atomic by construction, so the missing permissio
 | `by-time-*` | `pad9(elapsedMs) + '#' + createdAt + '#' + id` | `elapsedMs` ascending |
 | `by-player-*` | `playerNameLower + '#' + playerName + '#' + createdAt + '#' + id` | `playerName` ascending |
 
-Why `pointsKey` works: subtracting `points` from a fixed maximum inverts the comparison, so
-ascending `pointsKey` order is descending points. The `elapsedMs`, `createdAt` and `id` components
-then break ties the way the contract requires, and the trailing `id` makes the key unique so two
-identical results cannot collide.
-
-### The mirror rule
-
-A DynamoDB `Query` can read a sort key forward (`ScanIndexForward = true`) or backward
-(`ScanIndexForward = false`), but it cannot reverse only the leading component while leaving the
-remaining components ascending. Reversing the whole key gives the exact mirror of the natural
-direction, including the tiebreakers. That is the ordering guarantee the contract documents.
-
-| Sort column | Natural direction | `ScanIndexForward` for natural order | Mirror order |
-| --- | --- | --- | --- |
-| `points` | descending | `true` (the key itself is inverted) | `points` asc, then `createdAt` desc, then `id` desc |
-| `elapsedMs` | ascending | `true` | `elapsedMs` desc, then `createdAt` desc, then `id` desc |
-| `playerName` | ascending | `true` | normalized desc, then original desc, then `createdAt` desc, then `id` desc |
-
-The boolean mapping ends up uniform — forward for the natural direction, backward for the mirror —
-because every sort key is encoded so that ascending key order is the natural direction. The
-non-uniformity is in the key encoding, not in the `ScanIndexForward` value.
-
-### Rank calculation
-
-`rankOf` performs a single `Query` with `Select: COUNT` over `pointsKey < :thisPointsKey` on the
-`by-points-all` index with `allScope = "all"`, plus one. No table scan, no client-side sorting, and
-the cost is proportional to the number of scores ahead of the submitted one. A concurrent write
-between the `PutItem` and the count query can shift the reported rank by one; this is inherent to a
-leaderboard and is not hidden behind a transaction.
 
 ## Failure modes
 
@@ -225,7 +151,7 @@ leaderboard and is not hidden behind a transaction.
 | Storage failure | `500` with a generic body; the real error is logged with method, path and message. | `http/router.ts` |
 | Network failure in the browser | Distinct error type; the game result stays on screen for a retry. | `apps/web/src/api/scores.ts` |
 | Malformed success response | Rejected by type guards rather than cast into a `Score`. | `apps/web/src/api/scores.ts` |
-| `localStorage` unavailable | Reads and writes are swallowed; the game works without persistence. | `components/StatusPanel.tsx` |
+| `localStorage` unavailable | Reads and writes are swallowed; the game works without persistence. | `components/PlayerNameForm.tsx` |
 
 Expected client errors are **not** logged at error level. This is deliberate: a leaderboard where
 every mistyped name emits an error-level log makes any CloudWatch alarm on errors useless.
@@ -263,7 +189,7 @@ needs its own integration tests rather than reusing the in-memory ones.
 ## Static asset caching
 
 CloudFront serves the React SPA from a private S3 bucket through an origin access control. Two
-custom cache policies replace the previous AWS-managed policy and the `local-exec` invalidation:
+custom cache policies are used:
 
 | Path pattern | Cache policy | TTL | Purpose |
 | --- | --- | --- | --- |

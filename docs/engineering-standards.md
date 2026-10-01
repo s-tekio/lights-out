@@ -127,9 +127,9 @@ Recorded here so they are visible rather than discovered later.
 
 | Limitation | Impact | Tracked in |
 | --- | --- | --- |
-| The ranking API cannot verify that a game was actually solved. A client can report a plausible `moves` / `elapsedMs` pair. | The leaderboard is not trustworthy against a determined cheater. Server-side points computation removes arbitrary score injection, not result fabrication. | `docs/api-contract.md`, README future work |
+| The ranking API cannot verify that a game was actually solved. A client can report a plausible `moves` / `elapsedMs` pair. | The leaderboard is not trustworthy against a determined cheater. Server-side points computation removes arbitrary score injection, not result fabrication. | `docs/api-contract.md` |
 | The in-memory score repository does not survive a process restart. | Expected in local development. Production uses the DynamoDB adapter. | `lights-out-infra` feature |
-| No authentication. Player names are self-declared and unverified. | Anyone can submit under any name. | Future work |
+| No authentication. Player names are self-declared and unverified. | Anyone can submit under any name. | Not tracked to a specific document |
 
 ## Exceptions
 
@@ -153,11 +153,12 @@ credential source.
 
 ### TF-3 — Removal of `tflint` and Trivy
 
-The rule originally required static analysis with `tflint` and a security scanner such as
-`tfsec`/`trivy`. Both tools have been removed from the CI pipeline.
+Initially, the rule required static analysis with `tflint` and a security scanner such as
+`tfsec`/`trivy`. The enforced baseline is `terraform fmt -check` and `terraform validate`; those
+catch syntax, invalid arguments and deprecated usage, which was most of what `tflint` was
+providing.
 
-`terraform fmt -check` and `terraform validate` remain as the enforced baseline. They catch syntax,
-invalid arguments and deprecated usage, which was most of what `tflint` was providing.
+`tfsec`/`trivy` are no longer in the CI pipeline.
 
 Trivy was configured to fail on CRITICAL and HIGH severity findings, but every HIGH finding it
 reported was listed in `.trivyignore`. A gate whose every finding is excepted asserts nothing and

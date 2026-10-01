@@ -234,13 +234,13 @@ deployed frontend talks to the deployed backend on the same origin with no devel
 `api_health_url` output gives the endpoint to `curl`; the `scores_table_name`, `scores_table_arn`,
 `web_bucket_name` and `cloudfront_distribution_id` outputs expose the created resources.
 
-A new build reaches users without any CloudFront invalidation. Vite emits hashed asset filenames
-that change whenever the file contents change, so those objects are immutable and are cached both
-at the edge and in the browser for a year. `index.html` is not hashed, so it must never be cached:
-CloudFront uses a zero-TTL cache policy for the default behaviour, and the S3 object carries a
-`Cache-Control: no-cache` header so the browser revalidates it on every request. The `/api/*`
-behaviour keeps the existing caching-disabled policy and is untouched. This removes the previous
-`local-exec` provisioner and the runtime dependency on the AWS CLI.
+A new build reaches users without any CloudFront invalidation because Vite emits hashed asset
+filenames that change whenever the file contents change. Those objects are immutable and are
+cached both at the edge and in the browser for a year. `index.html` is not hashed, so it must
+never be cached: CloudFront uses a zero-TTL cache policy for the default behaviour, and the S3
+object carries a `Cache-Control: no-cache` header so the browser revalidates it on every request.
+The `/api/*` behaviour keeps the existing caching-disabled policy and is untouched. The AWS CLI
+is therefore not a runtime dependency of the deployment.
 
 The CI pipeline runs on every pull request and on every push to `main`. Pull requests go
 through the `quality` job (lint, format, typecheck, tests with DynamoDB Local, build, secret scan
