@@ -201,3 +201,28 @@ forwarded, and gzip compression is enabled. S3 objects are uploaded with matchin
 metadata: `no-cache` for `index.html` and `public, max-age=31536000, immutable` for everything under
 `assets/`. Because a new build changes the hashed asset filenames in `index.html`, no explicit
 invalidation is required.
+
+## Known limitations and accepted trade-offs
+
+Recorded here so they are visible rather than discovered later.
+
+### Known limitations
+
+| Limitation | Impact |
+| --- | --- |
+| The ranking API cannot verify that a game was actually solved. A client can report a plausible `moves` / `elapsedMs` pair. | The leaderboard is not trustworthy against a determined cheater. Server-side points computation removes arbitrary score injection, not result fabrication. |
+| The in-memory score repository does not survive a process restart. | Expected in local development. Production uses the DynamoDB adapter. |
+| No authentication. Player names are self-declared and unverified. | Anyone can submit under any name. |
+
+### Accepted trade-offs
+
+**Terraform plan is not run on pull requests.** The apply half of the deployment is gated to pushes to `main` and needs both the `quality` and `terraform` jobs to pass first. The plan half is deliberately not implemented. The deploy job uses temporary lab credentials stored as repository secrets; they expire when the lab session ends. Running `terraform plan` on every pull request would fail with an expired or missing session token for a reason entirely unrelated to the pull request's content, which turns a stale credential into noise on unrelated changes. A failing check that is not about the change is worse than an absent one.
+
+**The enforced Terraform baseline is `terraform fmt --check` and `terraform validate`.** `tflint` and Trivy were removed. Trivy was configured to fail on CRITICAL and HIGH severity findings, but every HIGH finding it reported was listed in `.trivyignore`. A gate whose every finding is excepted asserts nothing and is worse than no gate because it looks like assurance. The two genuine unfixed findings are recorded here with their cost reasoning instead:
+
+- **No CloudFront WAF.** A managed WAF web ACL costs roughly **$5 per month**, about seven times the project's total monthly estimate. The application has no authentication, no user data and no admin surface, and the API is rate limited at the API Gateway stage, which covers the abuse case a WAF would address.
+- **SSE-S3 rather than a customer-managed key.** Encryption at rest is in place; what is missing is key rotation, key policy control and KMS audit, which matter for sensitive data and are marginal for a bucket holding a public React bundle rebuilt on every deploy. A customer-managed key is about **$1 per month**.
+
+The fixes that came out of the scanning exercise stay: SNS topic encryption and API Gateway throttling are real improvements and are not reverted.
+
+`tflint` had reported zero findings since it was wired up, while costing a plugin download and two extra steps per run. The baseline checks cover what mattered in practice.

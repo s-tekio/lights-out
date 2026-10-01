@@ -63,8 +63,7 @@ npm run clean          # remove build output and dependencies
 │   └── web/                 Vite + React game and leaderboard
 ├── docs/
 │   ├── api-contract.md      Frozen interface between web and api
-│   ├── architecture.md      Components, flows and the planned AWS data model
-│   └── engineering-standards.md  The binding bar for code and infrastructure
+│   └── architecture.md      Components, flows and the planned AWS data model
 ├── terraform/               Infrastructure as code for the AWS stack
 ├── odd/tasks/               Feature task records
 └── .github/workflows/ci.yml CI pipeline
