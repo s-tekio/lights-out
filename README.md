@@ -350,6 +350,9 @@ separately.
 `docs/engineering-standards.md` is the binding bar. Every rule in it carries an ID and the
 mechanism that enforces it, so it states only rules that can actually be checked.
 
+The display font is Orbitron, licensed under the SIL Open Font License, Version 1.1; see
+`apps/web/src/assets/fonts/OFL.txt`.
+
 ## Known limitations
 
 These are real and current, not hypothetical:

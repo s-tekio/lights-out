@@ -154,7 +154,6 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
   return (
     <section className="leaderboard" aria-label="Leaderboard">
       <div className="leaderboard__header">
-        <h2>Leaderboard</h2>
         <div className="leaderboard__controls">
           <label htmlFor="leaderboard-difficulty">Level</label>
           <select

@@ -12,8 +12,21 @@
   --radius: 0;
   --gap: 0.75rem;
   --font-display:
-    Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', system-ui, sans-serif;
+    'Orbitron', Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', system-ui, sans-serif;
   --font-body: ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+}
+
+/* Orbitron is self-hosted so the app has no runtime dependency on a font CDN.
+   Only the latin subset is bundled because the titles are English. */
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('./assets/fonts/orbitron-latin-800.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 * {
@@ -129,15 +142,21 @@ body {
    offsets. The thin dark outline keeps the letters separate from the starfield.
    Degradation: the solid electric-blue colour is the default; browsers that
    support background-clip:text get the gradient fill, and browsers that do not
-   keep the solid colour instead of becoming invisible. */
+   keep the solid colour instead of becoming invisible.
+
+   The same treatment is reused for the smaller screen titles via .screen-title.
+   At the smaller size the full extrusion becomes muddy, so the depth is
+   reduced while the bevel and gradient stay. */
 .game-title {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 12vw, 7rem);
-  letter-spacing: 0.05em;
+  font-size: clamp(2rem, 10vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   line-height: 1;
   margin: 0;
   color: var(--color-accent-strong);
+  overflow-wrap: anywhere;
   text-shadow:
     /* thin dark outline */
     0 0 0.04em #000510,
@@ -148,8 +167,28 @@ body {
     0 0.15em 0 #000a10;
 }
 
+.screen-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 5vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin: 0;
+  color: var(--color-accent-strong);
+  overflow-wrap: anywhere;
+  text-shadow:
+    /* thin dark outline */
+    0 0 0.04em #000510,
+    /* light top-left bevel */ -0.03em -0.03em 0 var(--color-accent-highlight),
+    /* dark bottom-right bevel */ 0.03em 0.03em 0 #003060,
+    /* thinner extrusion for the smaller size */ 0 0.04em 0 #002040,
+    0 0.08em 0 #001525;
+}
+
 @supports (background-clip: text) or (-webkit-background-clip: text) {
-  .game-title {
+  .game-title,
+  .screen-title {
     color: transparent;
     background-image: linear-gradient(
       180deg,
@@ -191,13 +230,15 @@ body {
   overflow: hidden;
 }
 
-.screen-heading {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 6vw, 2.5rem);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-accent);
+/* The smaller-title screens keep the title at the top rather than centered. */
+.difficulty-screen,
+.settings-screen {
+  justify-content: flex-start;
+  padding-top: 2rem;
+}
+
+.title-screen {
+  justify-content: center;
 }
 
 /* Menu entries */
@@ -518,6 +559,7 @@ body {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.5rem;
+  font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -755,15 +797,10 @@ body {
 
 .leaderboard__header {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
   gap: 0.75rem;
   min-width: 0;
-}
-
-.leaderboard__header h2 {
-  margin: 0;
 }
 
 .leaderboard__controls {

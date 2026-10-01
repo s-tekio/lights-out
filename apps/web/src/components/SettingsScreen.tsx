@@ -13,7 +13,7 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   return (
     <div className="settings-screen">
-      <h2 className="screen-heading">Settings</h2>
+      <h2 className="screen-title">Settings</h2>
       <div className="settings__list">
         <button
           type="button"

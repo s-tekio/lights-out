@@ -8,7 +8,7 @@ type DifficultyScreenProps = {
 export function DifficultyScreen({ onSelect }: DifficultyScreenProps) {
   return (
     <div className="difficulty-screen">
-      <h2 className="screen-heading">Choose difficulty</h2>
+      <h2 className="screen-title">Choose difficulty</h2>
       <nav aria-label="Difficulty" className="menu">
         {DIFFICULTIES.map((difficulty) => (
           <button
