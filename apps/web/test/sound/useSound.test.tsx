@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useSound, type SoundDependencies } from '../../src/sound/useSound';
 import type { SoundEngine } from '../../src/sound/engine';
 import type { MusicPlayer } from '../../src/sound/musicPlayer';
@@ -108,13 +108,16 @@ function getEffectsButton() {
 }
 
 describe('useSound', () => {
-  beforeEach(() => {
-    window.localStorage.clear();
-  });
-
   afterEach(() => {
     cleanup();
-    window.localStorage.clear();
+  });
+
+  it('starts with music and effects enabled on a fresh mount', () => {
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+    expect(getMusicButton()).toHaveTextContent('Music On');
+    expect(getEffectsButton()).toHaveTextContent('Effects On');
   });
 
   it('attempts to play music on mount when music is enabled', () => {
@@ -122,23 +125,6 @@ describe('useSound', () => {
     const effects = createMockEngine();
     render(<TestHarness deps={{ music, effects }} />);
     expect(music.playCalls).toBe(1);
-  });
-
-  it('treats a missing stored music value as enabled', () => {
-    window.localStorage.clear();
-    const music = createMockMusicPlayer();
-    const effects = createMockEngine();
-    render(<TestHarness deps={{ music, effects }} />);
-    expect(getMusicButton()).toHaveTextContent('Music On');
-    expect(music.playCalls).toBe(1);
-  });
-
-  it('does not attempt to play music on mount when music is disabled', () => {
-    window.localStorage.setItem('lights-out:musicEnabled', 'false');
-    const music = createMockMusicPlayer();
-    const effects = createMockEngine();
-    render(<TestHarness deps={{ music, effects }} />);
-    expect(music.playCalls).toBe(0);
   });
 
   it('retries a refused gesture attempt on the next gesture', async () => {
@@ -351,38 +337,39 @@ describe('useSound', () => {
     expect(effects.lastEffectsEnabled).toBe(true);
   });
 
-  it('persists the music state to localStorage independently', () => {
+  it('does not read from localStorage on mount', () => {
+    window.localStorage.setItem('lights-out:musicEnabled', 'false');
+    window.localStorage.setItem('lights-out:effectsEnabled', 'false');
+
+    const getItemSpy = vi.spyOn(window.localStorage, 'getItem');
+    const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
+
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+
+    expect(getMusicButton()).toHaveTextContent('Music On');
+    expect(getEffectsButton()).toHaveTextContent('Effects On');
+    expect(getItemSpy).not.toHaveBeenCalled();
+    expect(setItemSpy).not.toHaveBeenCalled();
+
+    getItemSpy.mockRestore();
+    setItemSpy.mockRestore();
+  });
+
+  it('does not write to localStorage when toggling music or effects', () => {
+    const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
+
     const music = createMockMusicPlayer();
     const effects = createMockEngine();
     render(<TestHarness deps={{ music, effects }} />);
 
     fireEvent.click(getMusicButton());
-    expect(window.localStorage.getItem('lights-out:musicEnabled')).toBe('false');
-    expect(window.localStorage.getItem('lights-out:effectsEnabled')).toBeNull();
-
-    cleanup();
-
-    const nextMusic = createMockMusicPlayer();
-    const nextEffects = createMockEngine();
-    render(<TestHarness deps={{ music: nextMusic, effects: nextEffects }} />);
-    expect(getMusicButton()).toHaveTextContent('Music Off');
-  });
-
-  it('persists the effects state to localStorage independently', () => {
-    const music = createMockMusicPlayer();
-    const effects = createMockEngine();
-    render(<TestHarness deps={{ music, effects }} />);
-
     fireEvent.click(getEffectsButton());
-    expect(window.localStorage.getItem('lights-out:effectsEnabled')).toBe('false');
-    expect(window.localStorage.getItem('lights-out:musicEnabled')).toBeNull();
 
-    cleanup();
+    expect(setItemSpy).not.toHaveBeenCalled();
 
-    const nextMusic = createMockMusicPlayer();
-    const nextEffects = createMockEngine();
-    render(<TestHarness deps={{ music: nextMusic, effects: nextEffects }} />);
-    expect(getEffectsButton()).toHaveTextContent('Effects Off');
+    setItemSpy.mockRestore();
   });
 
   it('disposes both players on unmount', () => {

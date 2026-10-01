@@ -8,27 +8,6 @@ import {
   type MusicPlayer,
 } from './musicPlayer.ts';
 
-const MUSIC_STORAGE_KEY = 'lights-out:musicEnabled';
-const EFFECTS_STORAGE_KEY = 'lights-out:effectsEnabled';
-
-function readStoredFlag(key: string): boolean {
-  try {
-    const stored = window.localStorage.getItem(key);
-    return stored === null || stored === 'true';
-  } catch {
-    // Storage may be disabled; use the default.
-    return true;
-  }
-}
-
-function writeStoredFlag(key: string, enabled: boolean): void {
-  try {
-    window.localStorage.setItem(key, String(enabled));
-  } catch {
-    // Storage may be disabled; preferences are not persisted.
-  }
-}
-
 export type SoundControls = {
   readonly musicEnabled: boolean;
   readonly effectsEnabled: boolean;
@@ -45,8 +24,8 @@ export type SoundDependencies = {
 export function useSound(deps: SoundDependencies = {}): SoundControls {
   const musicRef = useRef<MusicPlayer>(deps.music ?? createMusicPlayer());
   const effectsRef = useRef<SoundEngine>(deps.effects ?? createSoundEngine());
-  const [musicEnabled, setMusicEnabled] = useState(() => readStoredFlag(MUSIC_STORAGE_KEY));
-  const [effectsEnabled, setEffectsEnabled] = useState(() => readStoredFlag(EFFECTS_STORAGE_KEY));
+  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [effectsEnabled, setEffectsEnabled] = useState(true);
   const gestureSucceededRef = useRef(false);
   const gestureStoppedRef = useRef(false);
   const gesturePlayPendingRef = useRef(false);
@@ -55,7 +34,6 @@ export function useSound(deps: SoundDependencies = {}): SoundControls {
   const toggleMusic = useCallback(() => {
     setMusicEnabled((previous) => {
       const next = !previous;
-      writeStoredFlag(MUSIC_STORAGE_KEY, next);
 
       const music = musicRef.current;
       music.setEnabled(next);
@@ -72,7 +50,6 @@ export function useSound(deps: SoundDependencies = {}): SoundControls {
   const toggleEffects = useCallback(() => {
     setEffectsEnabled((previous) => {
       const next = !previous;
-      writeStoredFlag(EFFECTS_STORAGE_KEY, next);
       effectsRef.current.setEffectsEnabled(next);
       return next;
     });
