@@ -31,9 +31,8 @@ export function padNumber(value: number, width: number): string {
 /**
  * Encode the sort key for the points GSI.
  *
- * The leading component is inverted so that ascending DynamoDB order is
- * descending points. The remaining components keep their natural ascending
- * order: elapsedMs, createdAt, id.
+ * The leading component is inverted so ascending DynamoDB order is descending
+ * points. The remaining components keep their natural ascending order.
  */
 export function encodePointsKey(score: Score): string {
   return `${padNumber(MAX_POINTS - score.points, POINTS_PAD)}#${padNumber(score.elapsedMs, TIME_PAD)}#${score.createdAt}#${score.id}`;
@@ -42,7 +41,7 @@ export function encodePointsKey(score: Score): string {
 /**
  * Encode the sort key for the time GSI.
  *
- * All components are in natural ascending order: elapsedMs, createdAt, id.
+ * All components are in natural ascending order.
  */
 export function encodeTimeKey(score: Score): string {
   return `${padNumber(score.elapsedMs, TIME_PAD)}#${score.createdAt}#${score.id}`;
@@ -51,8 +50,7 @@ export function encodeTimeKey(score: Score): string {
 /**
  * Encode the sort key for the player GSI.
  *
- * All components are in natural ascending order: normalized name, original
- * name, createdAt, id.
+ * All components are in natural ascending order.
  */
 export function encodePlayerKey(score: Score): string {
   return `${score.playerName.toLowerCase()}#${score.playerName}#${score.createdAt}#${score.id}`;
@@ -65,11 +63,10 @@ export function scopeFor(boardSize: number | null): string {
 /**
  * Map a public sort/order request to DynamoDB's `ScanIndexForward`.
  *
- * Every GSI sort key is encoded so that ascending key order equals the natural
+ * Every GSI sort key is encoded so ascending key order equals the natural
  * direction for that column. Forward (true) therefore returns natural order,
- * and backward (false) returns the exact mirror. The boolean is not uniform
- * when described by column: for `points` natural order is descending, while
- * for `elapsedMs` and `playerName` it is ascending.
+ * and backward (false) its exact mirror. The natural direction is not uniform:
+ * descending for `points`, ascending for `elapsedMs` and `playerName`.
  */
 export function scanIndexForward(sort: SortColumn, order: SortOrder): boolean {
   return order === NATURAL_SORT_DIRECTION[sort];
@@ -118,19 +115,17 @@ function mapItemToScore(item: Record<string, unknown>): Score {
 /**
  * DynamoDB implementation of {@link ScoreRepository}.
  *
- * Each score is stored as a single item with two scope attributes:
- * `allScope = "all"` and `boardScope = "board#<boardSize>"`. The six GSIs
- * provide every query path: all scores vs. one board size, times the three
- * sort dimensions. Direction is handled by `ScanIndexForward`, not by extra
- * indexes.
+ * Each score is stored as a single item with two scope attributes
+ * (`allScope`, `boardScope`). The six GSIs provide every query path: all
+ * scores vs. one board size, times the three sort dimensions. Direction is
+ * handled by `ScanIndexForward`, not by extra indexes.
  *
  * `save` uses a single PutItem. The previous design wrote the same score as
  * two items (global and per-board) and needed a transaction to keep them
- * consistent; storing one item removes that problem by construction, so no
- * transaction is required.
+ * consistent; one item removes that problem by construction.
  *
  * `rankOf` counts rows ranked ahead of the submitted score on the
- * `by-points-all` index. A concurrent write between the PutItem and the count
+ * `by-points-all` index. A concurrent write between PutItem and the count
  * query can shift the reported rank by one; this is inherent to a leaderboard
  * and is not hidden behind a transaction.
  */
@@ -141,9 +136,7 @@ export class DynamoDbScoreRepository implements ScoreRepository {
   ) {}
 
   async save(score: Score): Promise<Score> {
-    // One item per score makes PutItem atomic by construction. The atomicity
-    // problem in the previous design came from denormalising one record into
-    // two items; storing one item removes it.
+    // One item per score: PutItem is then atomic, which denormalising into two items was not.
     await this.docClient.send(
       new PutCommand({
         TableName: this.tableName,
@@ -191,8 +184,7 @@ export class DynamoDbScoreRepository implements ScoreRepository {
   }
 
   async deleteAll(): Promise<number> {
-    // A full table Scan is proportional to table size. That is irrelevant at
-    // this scale and is not what you would do at a larger one.
+    // A full table Scan is proportional to table size. That is fine at this scale.
     const keys: Array<{ id: string }> = [];
     let lastEvaluatedKey: Record<string, unknown> | undefined;
 

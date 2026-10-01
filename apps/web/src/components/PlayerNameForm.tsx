@@ -19,7 +19,7 @@ function readStoredPlayerName(): string {
   try {
     return window.localStorage.getItem(STORAGE_KEY) ?? '';
   } catch {
-    // Storage may be disabled; the game continues without persistence.
+    // Storage may be disabled; the game continues without it.
     return '';
   }
 }
@@ -28,7 +28,7 @@ function writeStoredPlayerName(name: string): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, name);
   } catch {
-    // Storage may be disabled; the game continues without persistence.
+    // Storage may be disabled; preferences are not persisted.
   }
 }
 

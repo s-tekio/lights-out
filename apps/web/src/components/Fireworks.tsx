@@ -49,7 +49,7 @@ export function Fireworks() {
     const context = canvas.getContext('2d');
 
     if (context === null) {
-      // jsdom and other environments without a 2D context simply get no drawing.
+      // jsdom and similar environments have no 2D context: skip drawing.
       return undefined;
     }
 

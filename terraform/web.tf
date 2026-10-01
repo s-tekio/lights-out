@@ -1,9 +1,8 @@
 # Frontend hosting: private S3 bucket served through CloudFront.
 #
-# CloudFront provides the HTTPS URL, routes everything under /api/* to the
-# API Gateway origin, and serves the React SPA from S3 for every other path.
-# This keeps the browser's API calls same-origin, so no CORS handling or
-# development proxy flag is needed in production.
+# CloudFront routes /api/* to the API Gateway origin and serves the React SPA
+# from S3 for every other path. This keeps API calls same-origin, so no CORS
+# handling or proxy flag is needed in production.
 
 data "aws_caller_identity" "current" {}
 
@@ -24,12 +23,11 @@ resource "terraform_data" "web_build_guard" {
 }
 
 resource "aws_s3_bucket" "web" {
-  # Bucket names are global, so append the AWS account id from a data source.
+  # Bucket names are global, so append the account id from a data source.
   bucket = "${var.project_name}-${var.environment}-web-${data.aws_caller_identity.current.account_id}"
 
   # force_destroy is safe here: the bucket holds only build artifacts that can
-  # be recreated from source. The stateful DynamoDB table is protected by
-  # deletion_protection_enabled and prevent_destroy instead.
+  # be recreated from source. The DynamoDB table is protected separately.
   force_destroy = true
 }
 
@@ -61,8 +59,8 @@ resource "aws_s3_bucket_versioning" "web" {
 }
 
 locals {
-  # Content types for the files vite emits. Browsers reject assets served with
-  # the wrong type, so every uploaded object must declare one.
+  # Content types for Vite's output. Browsers reject assets with the wrong type,
+  # so every uploaded object must declare one.
   web_content_types = {
     "html"  = "text/html"
     "js"    = "application/javascript"
@@ -75,11 +73,9 @@ locals {
     "woff2" = "font/woff2"
   }
 
-  # A fallback of application/octet-stream is silent, and silence is how the two
-  # entries above came to be missing: the objects deployed as generic bytes and
-  # nothing said so. Collect the extensions the build emitted that have no entry,
-  # including files with no extension at all, so the precondition below can fail
-  # the plan and name them instead.
+  # A fallback of application/octet-stream is silent. Collect every extension
+  # the build emitted that has no entry, including files with no extension, so
+  # the precondition fails and names them instead of deploying generic bytes.
   web_file_extensions = toset([
     for file in local.web_dist_files : try(regex("\\.([^.]+)$", file)[0], "")
   ])
@@ -111,9 +107,9 @@ resource "aws_s3_object" "web" {
     }
   }
 
-  # index.html must never be cached by the browser because it references the
-  # hashed asset filenames, which change on every build. Hashed assets under
-  # assets/ are immutable, so they can be cached by the browser for a year.
+  # index.html references hashed asset filenames that change on every build, so
+  # it must never be cached. Hashed assets under assets/ are immutable and can
+  # be cached for a year.
   cache_control = each.value == "index.html" ? "no-cache" : (
     startswith(each.value, "assets/") ? "public, max-age=31536000, immutable" : null
   )
@@ -144,8 +140,8 @@ resource "aws_cloudfront_distribution" "web" {
 
   origin {
     origin_id = "APIGW-${aws_apigatewayv2_api.api.id}"
-    # aws_apigatewayv2_api.api.api_endpoint includes the https:// scheme,
-    # which CloudFront rejects as a domain_name.
+    # The API Gateway endpoint includes the https:// scheme, which CloudFront
+    # rejects as a domain_name.
     domain_name = trimprefix(aws_apigatewayv2_api.api.api_endpoint, "https://")
 
     custom_origin_config {
@@ -155,7 +151,7 @@ resource "aws_cloudfront_distribution" "web" {
       origin_ssl_protocols   = ["TLSv1.2"]
     }
 
-    # No origin_path: the API Gateway stage is $default and serves at the root.
+    # No origin_path: the $default stage serves at the root.
   }
 
   default_cache_behavior {
@@ -166,9 +162,8 @@ resource "aws_cloudfront_distribution" "web" {
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
-    # AWS managed policy: CachingDisabled (4135ea2d-6df8-44a3-9df3-4b5a84be39ad).
-    # index.html is not hashed, so it must be revalidated against S3 on every request
-    # instead of being served from the edge.
+    # AWS managed CachingDisabled policy. index.html is not hashed, so it must be
+    # revalidated against S3 on every request instead of served from the edge.
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
   }
 
@@ -188,30 +183,29 @@ resource "aws_cloudfront_distribution" "web" {
     path_pattern     = "/api/*"
     target_origin_id = "APIGW-${aws_apigatewayv2_api.api.id}"
 
-    # Must include DELETE or the purge endpoint is rejected by CloudFront
-    # before it reaches Lambda, returning a 403 that looks like a permission issue.
+    # Must include DELETE or CloudFront rejects the purge endpoint before it
+    # reaches Lambda, returning a 403 that looks like a permission issue.
     allowed_methods = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods  = ["GET", "HEAD"]
 
-    # https-only rather than redirect-to-https. A redirect is not harmless on an API
-    # call: most clients follow a 301 or 302 from a POST as a GET, dropping both the
-    # method and the body, so a submission sent over HTTP would fail in a way that
-    # looks like a server bug. Redirecting is the friendly answer for a page; an API
-    # request that is not already on HTTPS should simply be refused.
+    # https-only, not redirect-to-https. A redirect is not harmless for an API
+    # call: most clients follow a 301/302 from a POST as a GET, dropping the method
+    # and body, so an HTTP submission fails in a way that looks like a server bug.
+    # Redirecting is fine for pages; an API request not already on HTTPS should be
+    # refused.
     viewer_protocol_policy = "https-only"
     compress               = true
 
     # AWS managed policy: CachingDisabled (4135ea2d-6df8-44a3-9df3-4b5a84be39ad)
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
 
-    # AWS managed policy: Managed-AllViewerExceptHostHeader
-    # (b689b0a8-53d0-40ab-baf2-68738e2966ac). It forwards every query string, so
-    # ?confirm=DELETE, sort and limit reach the API.
+    # AWS managed Managed-AllViewerExceptHostHeader policy. It forwards every query
+    # string so ?confirm=DELETE, sort and limit reach the API.
     #
-    # It has to be this one and not Managed-AllViewer, which forwards the Host header
-    # too. The viewer's Host is the CloudFront domain, and API Gateway refuses a
-    # request whose Host is not its own with 403 {"message":"Forbidden"}. That was
-    # the first deployment's symptom, while calling the API directly returned 200.
+    # It must not be Managed-AllViewer, which also forwards the Host header. The
+    # viewer's Host is the CloudFront domain, and API Gateway refuses a request whose
+    # Host is not its own with 403 {"message":"Forbidden"}. That was the first
+    # deployment's symptom; calling the API directly returned 200.
     origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
   }
 
@@ -223,18 +217,17 @@ resource "aws_cloudfront_distribution" "web" {
   }
 
   viewer_certificate {
-    # No custom domain: CloudFront's default certificate already serves HTTPS.
+    # No custom domain needed: CloudFront's default certificate already serves HTTPS.
     cloudfront_default_certificate = true
   }
 }
 
-# There is deliberately no custom cache policy for index.html. The AWS-managed
-# "CachingDisabled" policy already means exactly "never cache", and hand-writing one
-# is a trap: the first attempt was rejected because EnableAcceptEncodingGzip is
-# invalid when caching is disabled, and the attribute after that could have failed
-# the same way. A managed policy is valid by construction. A custom policy is kept
-# only where the requirement is genuinely custom, which here is the long asset TTL
-# below.
+# No custom cache policy for index.html. The AWS-managed "CachingDisabled" policy
+# already means "never cache", and hand-writing one is a trap: the first attempt
+# was rejected because EnableAcceptEncodingGzip is invalid when caching is disabled,
+# and later attributes could fail the same way. A managed policy is valid by
+# construction. A custom policy is kept only where the requirement is genuinely
+# custom, which here is the long asset TTL below.
 
 resource "aws_cloudfront_cache_policy" "web_assets" {
   name        = "${var.project_name}-${var.environment}-web-assets"

@@ -123,10 +123,9 @@ describe('computePoints', () => {
       const oneMsOver = computePoints({ boardSize, moves: par, elapsedMs: ref + 1 });
       expect(atRef).toBe(base);
 
-      // At referenceMs + 1 the time factor itself is below 1, but referenceMs
-      // is 20 times the base so the drop is smaller than 0.5 points and rounds
-      // back to the base. The visible effect appears once the drop is large
-      // enough to change the rounded integer.
+      // referenceMs is 20× the base, so at referenceMs + 1 the drop is below
+      // 0.5 points and rounds back to the base. The visible drop appears once
+      // rounding changes.
       expect(oneMsOver).toBeLessThanOrEqual(base);
       expect(computePoints({ boardSize, moves: par, elapsedMs: ref * 2 })).toBeLessThan(base);
     }
@@ -173,8 +172,8 @@ describe('computePoints', () => {
       // moveFactor ≈ 6 / 1000 = 0.006
       // timeFactor ≈ 18 000 / 86 400 000 = 0.0002083...
       // points = round(900 × 0.006 × 0.0002083...) = round(0.001125) = 0
-      // On Easy, zero now requires roughly moves × seconds > 194 000,
-      // against 43 moves under the old additive formula.
+      // On Easy, zero now needs roughly moves × seconds > 194 000, versus 43
+      // moves under the old additive formula.
       expect(computePoints({ boardSize: 3, moves: 1_000, elapsedMs: 86_400_000 })).toBe(0);
     });
   });

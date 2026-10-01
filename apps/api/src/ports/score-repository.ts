@@ -10,8 +10,8 @@ export type ListTopOptions = {
 
 /**
  * Persistence port for scores.
- * A concrete adapter (in-memory today, DynamoDB tomorrow) implements this
- * interface so the application layer stays decoupled from storage technology.
+ * Adapters implement this so the application layer stays decoupled from
+ * storage technology (in-memory today, DynamoDB tomorrow).
  */
 export interface ScoreRepository {
   save(score: Score): Promise<Score>;

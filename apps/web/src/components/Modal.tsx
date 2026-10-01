@@ -83,9 +83,9 @@ export function Modal({
       return;
     }
 
-    // Restoring focus to the trigger is only correct when the dialog closes.
-    // Doing it unconditionally would also run on mount, stealing focus on page
-    // load and dropping a screen reader user into the header.
+    // Restore focus to the trigger only when the dialog closes. Doing it on
+    // mount would steal focus on page load, dropping a screen reader user into
+    // the header.
     if (wasOpenRef.current) {
       wasOpenRef.current = false;
       triggerRef?.current?.focus();

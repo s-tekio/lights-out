@@ -7,9 +7,8 @@ terraform {
     region       = "eu-west-1"
     encrypt      = true
     use_lockfile = true
-    # Intentionally no `profile` attribute. Credentials come from the standard
-    # credential chain (CI role, environment variables, etc.), not a named
-    # profile that only exists on a single machine.
+    # No `profile` attribute: credentials come from the standard chain (CI role,
+    # environment variables, etc.), not a named profile tied to one machine.
   }
 
   required_providers {

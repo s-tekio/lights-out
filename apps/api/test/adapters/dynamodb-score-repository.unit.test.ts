@@ -90,7 +90,7 @@ describe('DynamoDbScoreRepository unit', () => {
     expect(input.IndexName).toBe('by-points-all');
     expect(input.KeyConditionExpression).toBe('allScope = :scope');
     expect(input.ExpressionAttributeValues[':scope']).toBe('all');
-    // The points key is inverted, so ascending order is descending points.
+    // The points key is inverted: ascending order is descending points.
     expect(input.ScanIndexForward).toBe(true);
     expect(input.Limit).toBe(10);
   });

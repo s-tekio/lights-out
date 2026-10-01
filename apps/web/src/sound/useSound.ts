@@ -16,7 +16,7 @@ function readStoredFlag(key: string): boolean {
     const stored = window.localStorage.getItem(key);
     return stored === null || stored === 'true';
   } catch {
-    // Storage may be disabled; the game continues with the default.
+    // Storage may be disabled; use the default.
     return true;
   }
 }
@@ -25,7 +25,7 @@ function writeStoredFlag(key: string, enabled: boolean): void {
   try {
     window.localStorage.setItem(key, String(enabled));
   } catch {
-    // Storage may be disabled; the game continues without persistence.
+    // Storage may be disabled; preferences are not persisted.
   }
 }
 
@@ -84,9 +84,9 @@ export function useSound(deps: SoundDependencies = {}): SoundControls {
     }
     autoplayAttemptedRef.current = true;
 
-    // Browsers block autoplay with sound until the user has interacted with the
-    // site, so this attempt will often reject. It is still worth trying because
-    // a repeat visit may be allowed, and the gesture fallback costs nothing.
+    // Browsers block autoplay until the user interacts, so this usually
+    // rejects. Trying is cheap: a repeat visit may be allowed, and the gesture
+    // fallback remains.
     void musicRef.current.play().catch(handleMusicPlayRejection);
   }, [musicEnabled]);
 
@@ -116,9 +116,8 @@ export function useSound(deps: SoundDependencies = {}): SoundControls {
         gestureSucceededRef.current = true;
         removeListeners();
       } catch (error: unknown) {
-        // A policy refusal means we should wait for the next gesture; any
-        // other error is a real failure. Stop retrying and re-throw so the
-        // genuine error surfaces.
+        // A policy refusal means wait for the next gesture; any other error is
+        // a real failure. Stop retrying and re-throw so it surfaces.
         if (!isNotAllowedError(error)) {
           gestureStoppedRef.current = true;
           removeListeners();

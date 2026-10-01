@@ -34,8 +34,8 @@ async function isEndpointReachable(): Promise<boolean> {
   }
 }
 
-// This schema mirrors terraform/dynamodb.tf. Keeping the two in sync is a
-// duplication risk: a mistake in either one will surface as a failing test.
+// Mirrors terraform/dynamodb.tf. A mismatch between the two surfaces as a
+// failing test.
 async function createScoresTable(tableName: string): Promise<void> {
   try {
     await lowLevelClient.send(
@@ -134,7 +134,7 @@ async function deleteScoresTable(tableName: string): Promise<void> {
   try {
     await lowLevelClient.send(new DeleteTableCommand({ TableName: tableName }));
   } catch {
-    // The table may already be gone; teardown should not fail the test run.
+    // Teardown should not fail if the table is already gone.
   }
 }
 
@@ -196,7 +196,7 @@ if (!reachable) {
 
   describe('DynamoDbScoreRepository integration', () => {
     beforeAll(async () => {
-      // Table is created at module load so the contract suite can run.
+      // Table created at module load so the contract suite can run.
     });
 
     afterAll(async () => {

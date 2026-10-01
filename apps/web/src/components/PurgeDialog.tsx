@@ -28,12 +28,10 @@ export function PurgeDialog({ isOpen, onClose, triggerRef, onPurge, onSuccess }:
 
   const canConfirm = value === CONFIRMATION_VALUE && !isPending;
 
-  // The confirm control stays disabled until the value matches exactly, which is
-  // what the server requires. A disabled button with no visible difference and no
-  // explanation is a trap: the player types something close, clicks a control that
-  // still looks active, and nothing happens for a reason they cannot see. That was
-  // reported as "no request is made when confirming". So the mismatch is now
-  // stated, and the styles make the disabled state unmistakable.
+  // The server requires an exact match, so confirmation stays disabled until
+  // then. A disabled button that looks active and gives no explanation is a
+  // trap ("no request is made when confirming"), so the mismatch is stated and
+  // the disabled state is visually unmistakable.
   const showsConfirmationHint = value !== '' && value !== CONFIRMATION_VALUE;
   const describedBy =
     [

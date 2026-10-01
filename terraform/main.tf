@@ -2,9 +2,9 @@ locals {
   function_name = "${var.project_name}-${var.environment}-api"
 }
 
-# The execution role is looked up by name so that no account id or ARN literal
-# is committed to the repository. The role must already exist in the target
-# account; this stack does not create or modify IAM resources.
+# The execution role is looked up by name so no account id or ARN literal is
+# committed. The role must already exist; this stack does not create or modify
+# IAM resources.
 data "aws_iam_role" "lambda_execution" {
   name = var.lambda_role_name
 }
@@ -35,8 +35,8 @@ resource "aws_lambda_function" "api" {
     }
   }
 
-  # Ensure the explicit, time-bounded log group is created before the first
-  # invocation, otherwise Lambda creates one that never expires.
+  # Create the explicit, time-bounded log group before the first invocation, or
+  # Lambda creates one that never expires.
   depends_on = [aws_cloudwatch_log_group.api]
 }
 
@@ -48,9 +48,8 @@ resource "aws_apigatewayv2_integration" "api" {
   payload_format_version = "2.0"
 }
 
-# A single catch-all route lets the Lambda's own router dispatch /api/health,
-# /api/scores and any future endpoints. Keeping routing in one place avoids
-# drift between API Gateway and the application.
+# A single catch-all route lets the Lambda router dispatch all endpoints.
+# Keeping routing in one place avoids drift with API Gateway.
 resource "aws_apigatewayv2_route" "api" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "ANY /api/{proxy+}"

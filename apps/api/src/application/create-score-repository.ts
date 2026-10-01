@@ -28,13 +28,11 @@ function createDocumentClient(endpoint: string | undefined): DynamoDBDocumentCli
 /**
  * Create a {@link ScoreRepository} from an explicit configuration object.
  *
- * - In local development, omitting `tableName` selects the in-memory adapter.
- *   Setting `tableName` selects DynamoDB, optionally pointed at a local
- *   endpoint via `endpoint`.
- * - In the Lambda entry point, `tableName` is required and the process fails
- *   loudly at cold start if it is missing. There is no silent fallback to the
- *   in-memory store: a misconfigured deployment that stops persisting would be
- *   worse than a failure.
+ * - Local development: omit `tableName` for in-memory, set it for DynamoDB,
+ *   optionally via `endpoint`.
+ * - Lambda: `tableName` is required. The process fails loudly at cold start
+ *   if it is missing, because a silent fallback to in-memory would stop
+ *   persisting in production.
  */
 export function createScoreRepository(config: ScoreRepositoryConfig): ScoreRepository {
   if (config.source === 'local' && (config.tableName === undefined || config.tableName === '')) {
@@ -55,7 +53,7 @@ export function createScoreRepository(config: ScoreRepositoryConfig): ScoreRepos
 /**
  * Factory for the Lambda handler. Reads `SCORES_TABLE_NAME` once at module
  * load and throws if it is absent, so the function fails to initialise rather
- * than running against an in-memory store in production.
+ * than silently using an in-memory store in production.
  */
 export function createLambdaScoreRepository(): ScoreRepository {
   const tableName = process.env.SCORES_TABLE_NAME;
@@ -67,9 +65,8 @@ export function createLambdaScoreRepository(): ScoreRepository {
 }
 
 /**
- * Factory for the local development server. Defaults to the in-memory adapter
- * unless `SCORES_TABLE_NAME` is set, in which case it points at DynamoDB using
- * `DYNAMODB_ENDPOINT` when provided.
+ * Factory for the local development server. Defaults to in-memory unless
+ * `SCORES_TABLE_NAME` is set; `DYNAMODB_ENDPOINT` points it at a local table.
  */
 export function createLocalScoreRepository(): ScoreRepository {
   const tableName = process.env.SCORES_TABLE_NAME;

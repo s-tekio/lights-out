@@ -23,8 +23,8 @@ export function SolutionReveal({
   showSolution,
   onToggleSolution,
 }: SolutionRevealProps) {
-  // useId rather than a literal: a hardcoded id collides if the component is
-  // ever rendered twice, and a duplicate id silently breaks aria-controls.
+  // useId avoids collisions if the component is rendered twice; duplicate ids
+  // silently break aria-controls.
   const listId = useId();
 
   return (

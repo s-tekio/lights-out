@@ -9,9 +9,8 @@ export type MusicPlayer = {
   applyAudibility(): void;
 };
 
-// The file is loudness-normalised to -18 LUFS, which is a background-music
-// target. A modest element volume keeps it clearly under the short, percussive
-// press blip while still being audible on a phone speaker.
+// Loudness-normalised to -18 LUFS. A modest volume keeps it under the
+// percussive press blip while remaining audible on a phone speaker.
 export const MUSIC_VOLUME = 0.25;
 
 export function isNotAllowedError(error: unknown): boolean {
@@ -49,8 +48,8 @@ export function createMusicPlayer(
     return audio;
   }
 
-  // Create the element eagerly so the browser can begin loading before the
-  // first play() call; this is important for the autoplay-on-mount attempt.
+  // Create the element eagerly so the browser begins loading before the first
+  // play() call, which matters for the autoplay-on-mount attempt.
   ensureAudio();
 
   return {
@@ -67,8 +66,8 @@ export function createMusicPlayer(
       }
 
       const promise = activeAudio.play();
-      // Defensive: very old browsers returned undefined. Modern browsers and
-      // jsdom return a Promise, but the seam accepts either shape.
+      // Very old browsers returned undefined; modern browsers and jsdom return
+      // a Promise. The seam accepts either shape.
       if (promise === undefined) {
         return Promise.resolve();
       }
@@ -116,10 +115,8 @@ export const silentMusicPlayer: MusicPlayer = {
 };
 
 export function handleMusicPlayRejection(error: unknown): void {
-  // Autoplay with sound is blocked by browsers until the user interacts with
-  // the site. This is not a bug and cannot be coded around, so policy refusals
-  // are swallowed here. A genuine load error is a different thing and should
-  // propagate to the caller.
+  // Browsers block autoplay with sound until the user interacts. Policy
+  // refusals are swallowed; genuine load errors propagate to the caller.
   if (isNotAllowedError(error)) {
     return;
   }

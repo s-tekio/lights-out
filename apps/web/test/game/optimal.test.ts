@@ -230,16 +230,13 @@ describe('findOptimalSolution', () => {
 
   it('is minimal against the solver oracle on 5x5 boards cheap enough to check', () => {
     // The oracle is exponential. At an optimum near 10 presses a single board
-    // costs about 7e6 nodes, and under coverage instrumentation the four samples
-    // this test used to run took 15.7 s against a 20 s timeout, which leaves no
-    // headroom for a slower machine.
+    // costs about 7e6 nodes; under coverage instrumentation four samples took
+    // 15.7 s against a 20 s timeout, leaving no headroom.
     //
-    // So the oracle runs only on samples whose optimum is small, where it is
-    // cheap and just as able to catch an error in the coset enumeration.
-    // Minimality on the expensive samples follows from the coset argument: the
-    // kernel tests prove the basis is a genuine nullspace basis of dimension 2,
-    // so the solution space has exactly four elements and the minimum over them
-    // is the true minimum.
+    // The oracle therefore runs only on cheap samples. Minimality on expensive
+    // samples follows from the coset argument: the kernel tests prove a genuine
+    // nullspace basis of dimension 2, so the solution space has exactly four
+    // elements and the minimum over them is the true minimum.
     const ORACLE_CAP = 6;
     const SAMPLE_SIZE = 200;
     const random = seededRandom(44444);
@@ -257,9 +254,9 @@ describe('findOptimalSolution', () => {
       checked += 1;
     }
 
-    // Guards against the oracle silently becoming vacuous if the cap, the sample
-    // size or the generator changes. Measured with this seed: 12 of 200 samples
-    // have an optimum at or below the cap.
+    // Guards against the oracle becoming vacuous if the cap, sample size or
+    // generator changes. Measured with this seed: 12 of 200 samples have an
+    // optimum at or below the cap.
     expect(checked).toBeGreaterThanOrEqual(8);
   });
 

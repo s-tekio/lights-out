@@ -1,7 +1,7 @@
 import type { Board } from './board';
 
 /**
- * Validate `maxPresses` the same way `board.ts` validates its numeric inputs.
+ * Keep validation consistent with `board.ts`.
  */
 function assertValidMaxPresses(maxPresses: number): void {
   if (!Number.isInteger(maxPresses) || maxPresses < 0) {
@@ -10,8 +10,8 @@ function assertValidMaxPresses(maxPresses: number): void {
 }
 
 /**
- * Pre-compute the list of cell indices toggled by each press on an `size x size`
- * board. This avoids scanning the whole board on every recursive step.
+ * Pre-compute the cells toggled by each press. Avoids scanning the whole board
+ * on every recursive step.
  */
 function buildToggleIndices(size: number): readonly (readonly number[])[] {
   const cellCount = size * size;
@@ -41,11 +41,10 @@ function buildToggleIndices(size: number): readonly (readonly number[])[] {
 
 /**
  * Toggle a press in-place on a mutable working board and return the change in
- * the number of lit cells.
+ * lit cells.
  *
- * Applying the same press twice restores the original state, so this single
- * helper is used both to apply a press on the way down and to undo it on the
- * way up during the depth-first search.
+ * Presses are self-inverse, so the same helper applies on the way down and
+ * undoes on the way up.
  */
 function pressInPlace(board: boolean[], affected: readonly number[]): number {
   let delta = 0;
@@ -62,20 +61,16 @@ function pressInPlace(board: boolean[], affected: readonly number[]): number {
 /**
  * Depth-first search over combinations of distinct cells.
  *
- * We press cells in strictly increasing index order, so each combination is
- * visited exactly once. The board state is maintained as a mutable boolean
- * array. We toggle a press in-place on the way down and toggle it again on
- * the way up, which restores the previous state because presses are
- * involutions.
+ * Cells are pressed in strictly increasing index order, so each combination is
+ * visited exactly once. Presses commute and are self-inverse, so order does not
+ * matter and permutations are not enumerated.
  *
- * Instead of scanning the whole board to check whether it is solved, we keep
- * a running count of lit cells. A board is solved exactly when the count is
- * zero, which makes the per-node check O(1) instead of O(n).
+ * A running count of lit cells replaces scanning the whole board: solved when
+ * the count is zero, so the per-node check is O(1).
  *
- * JavaScript bitwise operators on numbers truncate to 32 bits, so a bitmask
- * representation folds bits 32..n back onto bits 0..(n-32) on boards larger
- * than 32 cells. That fold is a linear map, which makes a mask-XOR solver
- * report false positives on 7x7 (49 cells) and larger. This implementation
+ * JavaScript bitwise operators truncate to 32 bits, folding bits back onto
+ * lower positions on boards larger than 32 cells. That makes a mask-XOR solver
+ * report false positives on 7x7 (49 cells) and larger; this implementation
  * avoids bitwise board state entirely.
  */
 function search(
@@ -117,27 +112,19 @@ function search(
  * Return whether `board` is already solved or can be solved with at most
  * `maxPresses` distinct presses.
  *
- * The search explores combinations of distinct cells in increasing size order:
- * size 0, then all size-1 subsets, then all size-2 subsets, and so on. Because
- * presses commute and are self-inverse, order does not matter; we never
- * enumerate permutations. The first solved board found is therefore a solution
- * with the smallest possible number of presses.
+ * The search explores combinations in increasing size order. Because presses
+ * commute and are self-inverse, the first solved board found uses the smallest
+ * possible number of presses.
  *
- * We use a mutable working array instead of the public `toggleAt` helper
- * because the search creates and discards one board state per node. Mutating
- * in-place removes the per-node array allocation and makes the DFS cheap even
- * on 9x9 boards. The original input is never mutated.
+ * A mutable working array replaces the public `toggleAt` helper: the search
+ * creates one board state per node, and mutating in-place removes the per-node
+ * allocation. The original input is never mutated.
  *
- * Cost: the search visits at most sum(C(n, k)) nodes for k from 0 to
- * `maxPresses`, where n is the number of cells. Each node performs an
- * in-place toggle over at most five cells and an O(1) lit-cell count check.
- * At `maxPresses = 2` this is:
- * - 5x5: n=25, 1 + 25 + C(25,2) = 326
- * - 7x7: n=49, 1 + 49 + C(49,2) = 1226
- * - 9x9: n=81, 1 + 81 + C(81,2) = 3322
- * A `maxPresses` of 4 or more on 9x9 (about 88 000 nodes) is where this
- * approach stops being cheap. The project deliberately keeps `minPresses` at 3,
- * so generation only needs `isSolvableWithin(board, 2)`.
+ * Cost: at most sum(C(n, k)) nodes for k from 0 to `maxPresses`. Each node
+ * toggles at most five cells and checks an O(1) lit-cell count. At
+ * `maxPresses = 2` this is 326 nodes for 5x5, 1 226 for 7x7, 3 322 for 9x9.
+ * The project keeps `minPresses` at 3, so generation only needs
+ * `isSolvableWithin(board, 2)`.
  */
 export function isSolvableWithin(board: Board, maxPresses: number): boolean {
   assertValidMaxPresses(maxPresses);

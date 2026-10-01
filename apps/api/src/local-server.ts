@@ -47,10 +47,9 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
   const apiResponse: ApiResponse = await route(apiRequest, { repo });
 
-  // This file is development only; the Lambda bundles a different entry point and
-  // never runs it. Logging every request here gives an unambiguous account of what
-  // the browser actually sent, which does not depend on a devtools session, on
-  // whether the panel was open before the page loaded, or on any panel filter.
+  // Development-only server; the Lambda entry point never runs this file.
+  // Logging every request gives an unambiguous account of what the browser sent,
+  // independent of devtools state or filters.
   console.log(
     `[api] ${apiRequest.method} ${url.pathname}${url.search} -> ${apiResponse.statusCode}`,
   );

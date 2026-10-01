@@ -219,8 +219,8 @@ export function runScoreRepositoryContract({
         sort: 'playerName',
         order: 'asc',
       });
-      // Inside the case-insensitive "ana" group, the original name orders by
-      // UTF-16 code unit: 'A' (U+0041) precedes 'a' (U+0061).
+      // Within the "ana" group, original names order by UTF-16 code unit:
+      // 'A' (U+0041) precedes 'a' (U+0061).
       expect(top.map((item) => item.id)).toEqual([uppercase.id, lowercase.id, mixed.id]);
     });
 

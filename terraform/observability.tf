@@ -6,8 +6,8 @@ resource "aws_cloudwatch_log_group" "api" {
 resource "aws_sns_topic" "alerts" {
   name = "${var.project_name}-${var.environment}-alerts"
 
-  # The AWS managed SNS key is used deliberately. It satisfies the scanner check,
-  # costs nothing, and needs no key policy, unlike a customer managed key.
+  # AWS managed SNS key: satisfies the scanner, costs nothing, and needs no key
+  # policy.
   kms_master_key_id = "alias/aws/sns"
 }
 

@@ -11,10 +11,9 @@ function applyPresses(board: ReturnType<typeof createBoard>, presses: readonly n
 }
 
 /**
- * Reference toggle implementation that mirrors `toggleAt` but is written
- * independently in the test file. Using a separate implementation means this
- * reference can catch representation bugs in the solver even if the production
- * `toggleAt` logic were to change.
+ * Reference toggle implementation, written independently of `toggleAt`. A
+ * separate implementation catches representation bugs in the solver even if
+ * production `toggleAt` changes.
  */
 function referenceToggleAt(board: ReturnType<typeof createBoard>, index: number): boolean[] {
   const size = Math.sqrt(board.length);
@@ -43,8 +42,8 @@ function referenceApplyPresses(
 }
 
 /**
- * Pre-compute the cells that each press toggles. Shared by the reference
- * helpers below so the searches never rebuild a board from scratch.
+ * Pre-compute the cells toggled by each press, shared by the reference helpers
+ * so the searches never rebuild a board from scratch.
  */
 function buildAffectedCells(size: number): readonly (readonly number[])[] {
   const cellCount = size * size;
@@ -73,19 +72,17 @@ function buildAffectedCells(size: number): readonly (readonly number[])[] {
 }
 
 /**
- * Reference solver that uses boolean arrays and no bitwise operators. It
- * enumerates subsets of distinct cells up to `maxPresses` and checks whether
- * any subset toggles every lit cell off.
+ * Reference solver using boolean arrays and no bitwise operators. It enumerates
+ * subsets of distinct cells up to `maxPresses` and checks whether any subset
+ * toggles every lit cell off.
  *
  * A regression test must not share the implementation's representation: the
- * original defect came from folding the board state into a 32-bit bitmask, so
- * a reference that also used a bitmask would agree with the buggy code and
- * hide the failure.
+ * original defect came from folding the board state into a 32-bit bitmask, so a
+ * reference using a bitmask would agree with the buggy code and hide the failure.
  *
- * The board is mutated in place and a running count of lit cells replaces the
- * scan for a solved board. That is a performance choice, not a correctness
- * one: the reference stays independent of the implementation because it never
- * touches bitwise operators.
+ * The board is mutated in place and a running lit-cell count replaces scanning
+ * for a solved board. That is a performance choice, not a correctness one; the
+ * reference stays independent because it never uses bitwise operators.
  */
 function referenceIsSolvableWithin(
   board: ReturnType<typeof createBoard>,
@@ -159,8 +156,8 @@ function generateRandomBoard(size: number, pressesCount: number, random: () => n
 }
 
 /**
- * Negate a single cell in place. This is the test helper used to build the
- * original counterexample.
+ * Negate a single cell in place. Test helper used to build the original
+ * counterexample.
  */
 function flip(board: ReturnType<typeof createBoard>, index: number): boolean[] {
   return board.map((lit, currentIndex) => (currentIndex === index ? !lit : lit));

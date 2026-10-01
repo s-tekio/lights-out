@@ -325,7 +325,7 @@ describe('useSound', () => {
     expect(getMusicButton()).toHaveTextContent('Music On');
     expect(music.lastEnabled).toBe(true);
     // The explicit toggle calls play, and the global click listener also sees
-    // the click as a user-activation gesture and tries to play.
+    // the click as a gesture and tries to play.
     expect(music.playCalls).toBe(initialPlayCalls + 2);
   });
 
@@ -340,8 +340,8 @@ describe('useSound', () => {
     fireEvent.click(getEffectsButton());
     expect(getEffectsButton()).toHaveTextContent('Effects Off');
     expect(effects.lastEffectsEnabled).toBe(false);
-    // The global click listener treats the click as a user-activation gesture
-    // and attempts to play, but it does not pause or change enabled state.
+    // The global click listener treats the click as a gesture and attempts to
+    // play, but it does not pause or change enabled state.
     expect(music.playCalls).toBe(playCallsBefore + 1);
     expect(music.pauseCalls).toBe(pauseCallsBefore);
     expect(music.lastEnabled).toBe(enabledBefore);

@@ -180,9 +180,9 @@ describe('WinSequence', () => {
   });
 
   it('keeps scheduling animation frames while the dialog is open and stops on unmount', async () => {
-    // requestAnimationFrame is not synchronous in jsdom, so this test uses
-    // real timers and waits for the first frame to be scheduled. Reduced motion
-    // must be off or the canvas is not rendered at all.
+    // requestAnimationFrame is not synchronous in jsdom, so this test uses real
+    // timers and waits for the first frame. Reduced motion must be off or the
+    // canvas is not rendered.
     vi.useRealTimers();
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,

@@ -9,9 +9,8 @@ const TIME_PAD = 9;
 /**
  * Natural direction for each sortable column.
  *
- * The DynamoDB adapter encodes every sort key so that ascending key order is
- * the natural direction. The in-memory adapter uses the same convention so the
- * two implementations agree.
+ * Both adapters use the same convention so ascending key order is always the
+ * natural direction and the two implementations agree.
  */
 const NATURAL_DIRECTION: Record<SortColumn, SortOrder> = {
   points: 'desc',
@@ -25,11 +24,10 @@ function padNumber(value: number, width: number): string {
 
 /**
  * Build a string key that orders in the natural direction for the requested
- * column. The format mirrors the DynamoDB GSI sort keys so both adapters
- * produce the same order.
+ * column, matching the DynamoDB GSI sort-key format so both adapters agree.
  *
  * `#` is a safe separator: player names are allow-listed to `[A-Za-z0-9 _\-.]`,
- * `createdAt` is ISO 8601, and `id` is a UUID, so none of them can contain it.
+ * `createdAt` is ISO 8601, and `id` is a UUID.
  */
 function naturalKey(score: Score, sort: SortColumn): string {
   if (sort === 'points') {
@@ -46,10 +44,8 @@ function naturalKey(score: Score, sort: SortColumn): string {
 /**
  * In-memory implementation of {@link ScoreRepository}.
  *
- * Sorting follows the natural direction for the requested column, then falls
- * back to the deterministic tiebreaker chain. The opposite direction is the
- * exact mirror of the natural one, including the tiebreakers, matching the
- * contract's DynamoDB-aware ordering rule.
+ * Sorting follows the natural direction and the same deterministic tiebreaker
+ * chain as DynamoDB; the opposite direction is its exact mirror.
  */
 export class InMemoryScoreRepository implements ScoreRepository {
   private readonly scores: Score[] = [];

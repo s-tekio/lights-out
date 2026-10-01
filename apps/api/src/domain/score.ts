@@ -27,25 +27,23 @@ export type ScoreInput = {
 export const BASE_POINTS_PER_CELL = 100;
 
 /**
- * Reference duration per board cell, in milliseconds.
- * The reference time for a level is boardSize² × this value.
+ * Reference duration per board cell (ms).
+ * A level's reference time is boardSize² × this value.
  */
 export const REFERENCE_MS_PER_CELL = 2_000;
 
 /**
  * Heuristic par for a board size.
- * The true minimum number of presses is not a fixed value, so the contract
- * uses a documented heuristic instead. Once the server issues puzzles, this
- * can be replaced by the board's real minimum and the move factor becomes a
- * true efficiency ratio.
+ * The true minimum is not fixed, so this documented heuristic is used instead
+ * of the real optimum. Once the server issues puzzles it can be replaced.
  */
 export function parMoves(boardSize: number): number {
   return boardSize * 2;
 }
 
 /**
- * Reference duration for a board size, in milliseconds.
- * A run finished at or below this duration keeps the full time factor.
+ * Reference duration for a board size (ms).
+ * Finishing at or below it keeps the full time factor.
  */
 export function referenceMs(boardSize: number): number {
   return boardSize * boardSize * REFERENCE_MS_PER_CELL;
@@ -60,10 +58,9 @@ type ComputePointsInput = {
 /**
  * Computes points from the reported game outcome.
  *
- * The score is a product of two bounded factors in (0, 1] instead of a fixed
- * base minus unbounded penalties. A subtraction collapses every result past
- * its break-even point into the same zero; a product keeps differentiating
- * scores no matter how long or how many moves the game took.
+ * The score is a product of two bounded factors in (0, 1], not a fixed base
+ * minus unbounded penalties. Subtraction collapses every result past its
+ * break-even point to zero; a product keeps differentiating scores.
  *
  *   base       = boardSize² × BASE_POINTS_PER_CELL
  *   par        = parMoves(boardSize)

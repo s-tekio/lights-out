@@ -6,8 +6,8 @@ export type Star = {
   readonly delay: number;
 };
 
-// Seeded linear congruential generator. Using a deterministic generator makes
-// the starfield layout testable and stable across renders.
+// Seeded linear congruential generator. Determinism makes the starfield
+// testable and stable across renders.
 function createSeededRandom(seed: number): () => number {
   let state = seed >>> 0;
 

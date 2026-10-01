@@ -49,9 +49,9 @@ describe('HelpDialog', () => {
   it('does not move focus on initial render', () => {
     render(<TestHarness />);
 
-    // Restoring focus to the trigger is only correct when the dialog closes.
-    // Doing it on mount steals focus on page load, which jumps a screen reader
-    // user straight into the header instead of the start of the document.
+    // Restore focus to the trigger only when the dialog closes. Doing it on
+    // mount steals focus on page load, dropping a screen reader user into the
+    // header.
     expect(screen.getByRole('button', { name: /Help/i })).not.toHaveFocus();
   });
 

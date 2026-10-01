@@ -4,12 +4,9 @@ import { isSolvableWithin } from './solver';
 /**
  * Board representation: a flat, read-only array of booleans.
  *
- * For a board of size `n`, the cell at row `r` and column `c` is stored at
- * index `r * n + c`. `true` means lit, `false` means off.
- *
- * A flat array was chosen because it makes cloning, indexing and neighbour
- * calculations straightforward while staying immutable from the caller's
- * perspective.
+ * For a board of size `n`, the cell at row `r` and column `c` is at index
+ * `r * n + c`. A flat array makes cloning, indexing and neighbour checks
+ * straightforward while keeping the public type immutable.
  */
 export type Board = ReadonlyArray<boolean>;
 
@@ -66,8 +63,8 @@ export function isSolved(board: Board): boolean {
 /**
  * Toggle a press in-place on a mutable board.
  *
- * Applying the same press twice restores the original state, so this single
- * helper is used both to apply a press and to undo it during generation.
+ * Presses are self-inverse, so the same helper applies a press and undoes it
+ * during generation.
  */
 function pressInPlace(board: boolean[], size: number, index: number): void {
   const row = Math.floor(index / size);
@@ -87,13 +84,12 @@ function pressInPlace(board: boolean[], size: number, index: number): void {
 }
 
 /**
- * Find the first set of exactly `pressCount` distinct cells, in lexicographic
- * order, whose board is not solvable within `pressCount - 1` presses.
+ * Find the first set of exactly `pressCount` distinct cells whose board is not
+ * solvable in `pressCount - 1` presses.
  *
- * This is the deterministic fallback used when random scrambling keeps
- * producing boards that are too easy. It always returns a valid set because
- * every supported board size has configurations that need at least the
- * requested number of presses.
+ * Deterministic fallback for when random scrambling keeps producing boards
+ * that are too easy. Every supported size has configurations that need at
+ * least this many presses, so a valid set always exists.
  */
 function findFirstValidPressSet(size: number, pressCount: number): readonly number[] {
   const cellCount = size * size;
@@ -135,9 +131,8 @@ function findFirstValidPressSet(size: number, pressCount: number): readonly numb
   return result;
 }
 
-// Number of random scrambles to try before falling back to a deterministic
-// press set. 20 attempts are enough that the fallback is rarely needed for
-// the supported difficulties while keeping generation fast.
+// Random scrambles to try before the deterministic fallback. 20 is enough
+// that the fallback is rarely needed for the supported difficulties.
 const MAX_GENERATION_ATTEMPTS = 20;
 
 export function createSolvableBoard(

@@ -1,6 +1,5 @@
-# The $default stage's invoke_url already ends with a trailing slash, so
-# appending a path produced a double slash in api_health_url. Trim it once and
-# build every exposed URL from the trimmed base.
+# The $default stage's invoke_url ends with a trailing slash; appending a path
+# produced a double slash. Trim once and build every URL from the trimmed base.
 locals {
   api_base_url = trimsuffix(aws_apigatewayv2_stage.api.invoke_url, "/")
 }

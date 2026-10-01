@@ -93,9 +93,8 @@ describe('lambda handler', () => {
       isBase64Encoded: true,
     };
 
-    // The payload is invalid (boardSize 10), so validation fails before any
-    // repository call. This lets us assert that the handler decoded the body
-    // and translated the event shape without exercising DynamoDB.
+    // Validation fails before any repository call, so this asserts the handler
+    // decodes the body and event shape without touching DynamoDB.
     const result = await handler(event, {} as never);
 
     expect(result.statusCode).toBe(400);

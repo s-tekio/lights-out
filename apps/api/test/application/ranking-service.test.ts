@@ -76,8 +76,8 @@ describe('submitScore', () => {
       elapsedMs: 42_310,
     });
 
-    // A 5x5 at 7 presses and 42.31 s sits inside par (10) and inside the 50 s
-    // reference, so both factors are 1 and the score is the full base of 2500.
+    // 5x5, 7 presses, 42.31 s: inside par (10) and the 50 s reference, so both
+    // factors are 1 and the score is the full base (2500).
     expect(result.score.points).toBe(2_500);
     expect(result.rank).toBe(1);
     expect(result.score.id).toMatch(
