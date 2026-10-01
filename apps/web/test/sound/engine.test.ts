@@ -10,10 +10,12 @@ import {
 type FakeOscillator = {
   type: string;
   frequency: FakeAudioParam;
+  periodicWave: PeriodicWave | null;
   connect: ReturnType<typeof vi.fn>;
   disconnect: ReturnType<typeof vi.fn>;
   start: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
+  setPeriodicWave: ReturnType<typeof vi.fn>;
 };
 
 type FakeGain = {
@@ -75,10 +77,18 @@ function createFakeAudioContext() {
       const oscillator: FakeOscillator = {
         type: 'sine',
         frequency: createFakeAudioParam(),
+        periodicWave: null,
         connect: vi.fn().mockReturnThis(),
         disconnect: vi.fn(),
         start: vi.fn(),
         stop: vi.fn(),
+        setPeriodicWave: vi.fn().mockImplementation(function (
+          this: FakeOscillator,
+          wave: PeriodicWave,
+        ) {
+          this.periodicWave = wave;
+          this.type = 'custom';
+        }),
       };
       oscillators.push(oscillator);
       return oscillator;
@@ -113,6 +123,10 @@ function createFakeAudioContext() {
       };
       bufferSources.push(source);
       return source;
+    }),
+
+    createPeriodicWave: vi.fn().mockImplementation((real: Float32Array, imag: Float32Array) => {
+      return { real, imag };
     }),
   };
 
@@ -267,6 +281,30 @@ describe('engine', () => {
       engine.start();
       await vi.advanceTimersByTimeAsync(100);
       expect(fake.context.createBufferSource).toHaveBeenCalled();
+    });
+
+    it('schedules pulse events with a periodic wave when supported', async () => {
+      const schedule = buildLoopSchedule();
+      const pulseEvent = schedule.events.find((event) => event.wave === 'pulse');
+      expect(pulseEvent).toBeDefined();
+
+      engine.start();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(fake.context.createPeriodicWave).toHaveBeenCalled();
+    });
+
+    it('falls back to a square oscillator when periodic waves are unavailable', async () => {
+      const schedule = buildLoopSchedule();
+      const pulseEvent = schedule.events.find((event) => event.wave === 'pulse');
+      expect(pulseEvent).toBeDefined();
+
+      fake.context.createPeriodicWave =
+        undefined as unknown as typeof fake.context.createPeriodicWave;
+      engine.start();
+      await vi.advanceTimersByTimeAsync(100);
+
+      const pulseOscillator = fake.oscillators.find((oscillator) => oscillator.type === 'square');
+      expect(pulseOscillator).toBeDefined();
     });
 
     it('skips press when effects are disabled', () => {

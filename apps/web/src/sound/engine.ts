@@ -1,4 +1,10 @@
-import { buildLoopSchedule, ENVELOPE, type LoopSchedule, type ScheduleEvent } from './music.ts';
+import {
+  buildLoopSchedule,
+  ENVELOPE,
+  pulseWaveCoefficients,
+  type LoopSchedule,
+  type ScheduleEvent,
+} from './music.ts';
 
 export type SoundEngine = {
   readonly isSupported: boolean;
@@ -25,12 +31,13 @@ function applyEnvelope(
 ): void {
   const attack = ENVELOPE.attack;
   const release = Math.min(ENVELOPE.release, duration / 2);
-  const sustainLevel = peakGain * 0.7;
   const releaseStart = startTime + duration - release;
 
+  // Hard envelope: rise to peak, hold flat, then fall to silence. No swell,
+  // no sustain curve, no reverb tail — just the click-free shape a chip had.
   gainNode.gain.setValueAtTime(0, startTime);
-  gainNode.gain.linearRampToValueAtTime(sustainLevel, startTime + attack);
-  gainNode.gain.setValueAtTime(sustainLevel, releaseStart);
+  gainNode.gain.linearRampToValueAtTime(peakGain, startTime + attack);
+  gainNode.gain.setValueAtTime(peakGain, releaseStart);
   gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
 }
 
@@ -61,9 +68,18 @@ function playNote(context: AudioContext, event: ScheduleEvent): void {
   }
 
   const oscillator = context.createOscillator();
-
-  oscillator.type = event.wave;
   oscillator.frequency.value = event.frequency;
+
+  if (event.wave === 'pulse') {
+    if (event.dutyCycle !== null && typeof context.createPeriodicWave === 'function') {
+      const { real, imag } = pulseWaveCoefficients(event.dutyCycle);
+      oscillator.setPeriodicWave(context.createPeriodicWave(real, imag));
+    } else {
+      oscillator.type = 'square';
+    }
+  } else {
+    oscillator.type = event.wave;
+  }
 
   oscillator.connect(gainNode);
   gainNode.connect(context.destination);

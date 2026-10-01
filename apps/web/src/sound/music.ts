@@ -30,13 +30,20 @@ export type NoteName =
   | 'C6'
   | 'D6';
 
-export type WaveShape = 'triangle' | 'square' | 'sawtooth' | 'noise';
+// The arcade chips had pulse channels with selectable duty cycles, not a
+// fixed 50 % square. We model the lead and arpeggio as pulse waves and keep
+// the triangle bass as the chip's dedicated bass voice.
+export const DUTY_CYCLES = [0.125, 0.25, 0.5] as const;
+export type DutyCycle = (typeof DUTY_CYCLES)[number];
+
+export type WaveShape = 'triangle' | 'pulse' | 'noise';
 
 export type MusicNote = {
   readonly frequency: number;
   readonly duration: number;
   readonly gain: number;
   readonly wave: WaveShape;
+  readonly dutyCycle: DutyCycle | null;
 };
 
 export type ScheduleEvent = MusicNote & {
@@ -58,20 +65,42 @@ export const MUSIC_GAIN_CEILING = 0.08;
 // accompaniment is lowered instead of raising the ceiling.
 export const BASS_GAIN = 0.028;
 export const ARPEGGIO_GAIN = 0.022;
-export const PERCUSSION_DOWNBEAT_GAIN = 0.02;
-export const PERCUSSION_OFFBEAT_GAIN = 0.009;
 export const LEAD_GAIN = 0.055;
 
-// A tight attack and a short release keep the fast loop punchy and clean.
-const ATTACK_SECONDS = 0.01;
-const RELEASE_SECONDS = 0.06;
+// Percussion is now two noise envelopes: a very short hi-hat and a slightly
+// longer, quieter snare, instead of a single hit shape for every beat.
+export const HI_HAT_GAIN = 0.012;
+export const HI_HAT_DURATION = 0.015;
+export const SNARE_GAIN = 0.008;
+export const SNARE_DURATION = 0.04;
+
+// A chip has no swell and no reverb: a note starts and stops. The attack and
+// release are only long enough to prevent an audible click.
+const ATTACK_SECONDS = 0.003;
+const RELEASE_SECONDS = 0.005;
 
 export const ENVELOPE = {
   attack: ATTACK_SECONDS,
   release: RELEASE_SECONDS,
 } as const;
 
-export const LEAD_WAVE: WaveShape = 'sawtooth';
+// Thin 12.5 % duty for the lead gives that bright NES-style solo voice;
+// 25 % is the classic square-ish pulse used for the busy arpeggio.
+export const LEAD_DUTY_CYCLE: DutyCycle = 0.125;
+export const ARPEGGIO_DUTY_CYCLE: DutyCycle = 0.25;
+export const LEAD_WAVE: WaveShape = 'pulse';
+
+// The hardware frequency table was coarse. 128 steps per octave gives a
+// maximum deviation of about 4 cents: clearly authentic, but still subtle.
+export const PITCH_STEPS_PER_OCTAVE = 128;
+
+// Vibrato is stepped, not swept: the hardware jumped between table entries.
+// One discrete update every 1/16 of a beat is fast enough to sound like
+// vibrato while staying obviously stepped.
+export const VIBRATO_SUBDIVISION = 16;
+export const VIBRATO_CENTS = 25;
+
+const VIBRATO_PATTERN = [0, VIBRATO_CENTS, 0, -VIBRATO_CENTS] as const;
 
 // Equal temperament: f = 440 * 2^((n - 69) / 12), where n is the MIDI number.
 const NOTE_OFFSETS: Record<NoteName, number> = {
@@ -107,9 +136,48 @@ const NOTE_OFFSETS: Record<NoteName, number> = {
   D6: 17,
 };
 
+export function quantizeFrequency(frequency: number): number {
+  if (frequency <= 0 || !Number.isFinite(frequency)) {
+    return frequency;
+  }
+  const steps = Math.round(Math.log2(frequency / 440) * PITCH_STEPS_PER_OCTAVE);
+  return 440 * 2 ** (steps / PITCH_STEPS_PER_OCTAVE);
+}
+
 export function noteToFrequency(note: NoteName): number {
   const offset = NOTE_OFFSETS[note];
-  return 440 * 2 ** (offset / 12);
+  return quantizeFrequency(440 * 2 ** (offset / 12));
+}
+
+export function vibratoStepCents(stepIndex: number): number {
+  const value = VIBRATO_PATTERN[stepIndex % VIBRATO_PATTERN.length];
+  return value ?? 0;
+}
+
+export function applyVibrato(frequency: number, cents: number): number {
+  return frequency * 2 ** (cents / 1200);
+}
+
+// Fourier coefficients for a bipolar pulse wave with the given duty cycle.
+// The result is suitable for Web Audio's createPeriodicWave: `real` holds the
+// cosine terms, `imag` the sine terms. The DC offset is 2*d - 1, and the nth
+// harmonic is (4 / (n*pi)) * sin(n*pi*d).
+export const PULSE_HARMONICS = 32;
+
+export function pulseWaveCoefficients(
+  duty: DutyCycle,
+  harmonics: number = PULSE_HARMONICS,
+): { readonly real: Float32Array; readonly imag: Float32Array } {
+  const real = new Float32Array(harmonics + 1);
+  const imag = new Float32Array(harmonics + 1);
+
+  real[0] = 2 * duty - 1;
+  for (let n = 1; n <= harmonics; n += 1) {
+    real[n] = (4 / (n * Math.PI)) * Math.sin(n * Math.PI * duty);
+    imag[n] = 0;
+  }
+
+  return { real, imag };
 }
 
 export function beatSeconds(bpm: number): number {
@@ -121,9 +189,9 @@ export function barSeconds(bpm: number): number {
 }
 
 // A sixteen-bar arcade progression in C major.
-// The bass and percussion lay down a relentless pulse, the arpeggio keeps
-// the harmony moving, and a monophonic sawtooth lead states a hook and then
-// answers it in a higher register.
+// The bass and percussion lay down a relentless pulse, the pulse arpeggio
+// keeps the harmony moving, and a monophonic pulse lead states a hook and
+// then answers it in a higher register.
 type ChordDef = {
   readonly name: string;
   readonly root: NoteName;
@@ -174,10 +242,11 @@ function buildBar(
       duration: beat - 0.02,
       gain: BASS_GAIN,
       wave: 'triangle',
+      dutyCycle: null,
     });
   }
 
-  // Busy square-wave arpeggio: sixteenth-note chord tones.
+  // Busy pulse-wave arpeggio: sixteenth-note chord tones.
   const sixteenth = beat / 4;
   const stepsPerBar = 16;
   for (let index = 0; index < stepsPerBar; index += 1) {
@@ -190,7 +259,8 @@ function buildBar(
       frequency: noteToFrequency(tone),
       duration: sixteenth - 0.005,
       gain: ARPEGGIO_GAIN,
-      wave: 'square',
+      wave: 'pulse',
+      dutyCycle: ARPEGGIO_DUTY_CYCLE,
     });
   }
 
@@ -200,25 +270,28 @@ function buildBar(
 function buildPercussion(barOffset: number, beat: number): ScheduleEvent[] {
   const events: ScheduleEvent[] = [];
 
-  // A kick-like hit on every beat keeps the pulse forward.
+  // A longer, quieter snare on the downbeat; very short hi-hats everywhere else.
   for (let step = 0; step < 4; step += 1) {
+    const isSnare = step === 0;
     events.push({
       time: barOffset + step * beat,
       frequency: 0,
-      duration: 0.03,
-      gain: step === 0 ? PERCUSSION_DOWNBEAT_GAIN : 0.012,
+      duration: isSnare ? SNARE_DURATION : HI_HAT_DURATION,
+      gain: isSnare ? SNARE_GAIN : HI_HAT_GAIN,
       wave: 'noise',
+      dutyCycle: null,
     });
   }
 
-  // Offbeat hi-hats fill the gaps so the groove never lets up.
+  // Offbeat hi-hats keep the groove from letting up.
   for (let step = 0; step < 4; step += 1) {
     events.push({
       time: barOffset + (step + 0.5) * beat,
       frequency: 0,
-      duration: 0.015,
-      gain: PERCUSSION_OFFBEAT_GAIN,
+      duration: HI_HAT_DURATION,
+      gain: HI_HAT_GAIN,
       wave: 'noise',
+      dutyCycle: null,
     });
   }
 
@@ -326,19 +399,51 @@ const LEAD_PHRASE: readonly LeadStep[][] = [
 
 function buildLeadBar(bpm: number, barIndex: number, steps: readonly LeadStep[]): ScheduleEvent[] {
   const beat = beatSeconds(bpm);
+  const stepSeconds = beat / VIBRATO_SUBDIVISION;
   const barOffset = barIndex * 4 * beat;
   const events: ScheduleEvent[] = [];
   let beatOffset = 0;
+  let vibratoIndex = 0;
 
   for (const step of steps) {
     if (step.note !== null) {
-      events.push({
-        time: barOffset + beatOffset * beat,
-        frequency: noteToFrequency(step.note),
-        duration: step.beats * beat - 0.015,
-        gain: LEAD_GAIN,
-        wave: LEAD_WAVE,
-      });
+      // Each written note starts from the base pitch; the vibrato pattern runs
+      // inside the note so the onset always carries the written frequency.
+      vibratoIndex = 0;
+      const baseFrequency = noteToFrequency(step.note);
+      const noteDuration = step.beats * beat;
+      const releaseGap = 0.015;
+      const playableDuration = Math.max(0, noteDuration - releaseGap);
+
+      // Long enough to step: split into discrete vibrato slices. Each slice is
+      // a separate event with its own quantized pitch, so the pitch jumps
+      // between table entries instead of gliding.
+      if (playableDuration >= stepSeconds * 2) {
+        const subSteps = Math.max(2, Math.floor(playableDuration / stepSeconds));
+        const subDuration = playableDuration / subSteps;
+
+        for (let index = 0; index < subSteps; index += 1) {
+          const cents = vibratoStepCents(vibratoIndex);
+          vibratoIndex += 1;
+          events.push({
+            time: barOffset + beatOffset * beat + index * subDuration,
+            frequency: quantizeFrequency(applyVibrato(baseFrequency, cents)),
+            duration: subDuration,
+            gain: LEAD_GAIN,
+            wave: 'pulse',
+            dutyCycle: LEAD_DUTY_CYCLE,
+          });
+        }
+      } else {
+        events.push({
+          time: barOffset + beatOffset * beat,
+          frequency: baseFrequency,
+          duration: playableDuration,
+          gain: LEAD_GAIN,
+          wave: 'pulse',
+          dutyCycle: LEAD_DUTY_CYCLE,
+        });
+      }
     }
     beatOffset += step.beats;
   }

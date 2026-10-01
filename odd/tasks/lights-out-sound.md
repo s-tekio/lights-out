@@ -140,3 +140,57 @@ No one here can hear the result. The tests pin the structure, the register, the 
 - The music starts on the first interaction rather than on load, because the browser forbids anything else.
 - There is no volume control, only on and off. A slider is a separate decision.
 - Sound is off in any environment without the Web Audio API, silently.
+
+## Iteration: closer to arcade chip character
+
+The user asked for a more authentic chip-music character through the techniques the hardware actually had, while keeping the approved fast tempo, relentless pulse, monophonic lead hook, and unchanged gain ceiling. The material stays original; nothing was transcribed or imitated.
+
+### Decisions
+
+| Trait | Applied? | Choice |
+| --- | --- | --- |
+| Pulse waves with selectable duty cycle | Yes | Lead uses a 12.5 % duty-cycle pulse (`LEAD_DUTY_CYCLE = 0.125`); arpeggio uses 25 % (`ARPEGGIO_DUTY_CYCLE = 0.25`). The waveform is built from Fourier coefficients via `createPeriodicWave`, with a plain `square` fallback when `createPeriodicWave` is unavailable. |
+| Hard note envelopes | Yes | `ENVELOPE.attack = 0.003 s`, `ENVELOPE.release = 0.005 s`. The gain rises to peak, holds flat, then falls to silence; no sustain curve, no reverb tail. |
+| Stepped vibrato | Yes | The lead vibrates in discrete pitch steps. `VIBRATO_SUBDIVISION = 16` slices per beat, `VIBRATO_CENTS = ±25`, pattern `[0, +25, 0, -25]` cents. Each written note resets to the base pitch, so the onset carries the written frequency. |
+| Quantised pitch | Yes | `PITCH_STEPS_PER_OCTAVE = 128` steps per octave; every note frequency is quantised to that table, giving a deterministic deviation bounded below ~4.7 cents. |
+| Noise percussion with two envelopes | Yes | A very short hi-hat (`HI_HAT_DURATION = 0.015 s`, `HI_HAT_GAIN = 0.012`) and a slightly longer, quieter snare (`SNARE_DURATION = 0.04 s`, `SNARE_GAIN = 0.008`) replace the previous single hit shape. |
+| Triangle bass | Yes | Unchanged; still the chip-era bass voice. |
+| Sawtooth lead | No | Replaced by the pulse lead; sawtooth was a placeholder, and pulse is the defining lead timbre of the era. |
+| Smooth pitch sweeps / portamento | No | Deliberately avoided; the hardware could not do them. |
+| Arpeggio as fixed square | No | Changed to a 25 % pulse; a fixed 50 % square is what the chip could move beyond. |
+
+### What changed
+
+- `apps/web/src/sound/music.ts`
+  - `WaveShape` reduced to `'triangle' | 'pulse' | 'noise'`; `sawtooth` removed.
+  - Added `DutyCycle`, `DUTY_CYCLES`, `LEAD_DUTY_CYCLE`, `ARPEGGIO_DUTY_CYCLE`.
+  - Added `pulseWaveCoefficients(duty, harmonics)` for Fourier-coefficient construction.
+  - Added `PITCH_STEPS_PER_OCTAVE` and `quantizeFrequency`.
+  - Added `VIBRATO_SUBDIVISION`, `VIBRATO_CENTS`, `vibratoStepCents`, and `applyVibrato`.
+  - Hardened envelopes: `ENVELOPE.attack = 0.003`, `ENVELOPE.release = 0.005`.
+  - Replaced percussion constants with `HI_HAT_*` and `SNARE_*`; downbeat uses the snare envelope, all other beats and offbeats use hi-hat.
+  - Lead is now a `'pulse'` wave with 12.5 % duty and stepped vibrato; arpeggio is a `'pulse'` wave with 25 % duty.
+- `apps/web/src/sound/engine.ts`
+  - `applyEnvelope` now holds the peak level flat instead of ramping to a sustain level.
+  - `playNote` builds pulse waves via `createPeriodicWave` using the pure coefficients, falling back to `'square'` when unavailable.
+- `apps/web/test/sound/music.test.ts`
+  - Updated existing wave filters from `'sawtooth'` and `'square'` to `'pulse'` and duty-cycle checks.
+  - Added tests for: coefficient stability and recognisable differences per duty cycle; scheduled duty-cycle separation; hard envelope bounds; discrete vibrato values; held notes split into stepped vibrato events; deterministic pitch quantisation and bounded deviation; two distinct percussion envelopes.
+- `apps/web/test/sound/engine.test.ts`
+  - Added `createPeriodicWave` to the fake `AudioContext`.
+  - Added tests that pulse events use `createPeriodicWave` and fall back to `'square'` when it is unavailable.
+
+### Verification evidence (iteration)
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | exit 0 |
+| `npm run format:check` | exit 0 |
+| `npm run typecheck` | exit 0 |
+| `npm run build` | exit 0 |
+| `npm run test:coverage --workspace @lights-out/web` | exit 0, 273 tests, branch coverage 91.97% |
+| No audio files, no new dependency | confirmed |
+
+### What is deliberately not verified
+
+Nobody here can hear the result. jsdom has no Web Audio implementation and there is no headless browser here, so no test asserts the actual timbre of the pulse waves, the hardness of the envelopes, or the stepped vibrato. The tests pin the coefficient sets, the envelope constants, the quantisation bounds, the vibrato step pattern, the duty-cycle routing, and the scheduling calls; the audible character is reasoned about, not measured.
