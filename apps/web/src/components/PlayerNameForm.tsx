@@ -13,27 +13,11 @@ type PlayerNameFormProps = {
   readonly onCancel: () => void;
 };
 
-const STORAGE_KEY = 'lights-out:playerName';
-
-function readStoredPlayerName(): string {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? '';
-  } catch {
-    // Storage may be disabled; the game continues without it.
-    return '';
-  }
-}
-
-function writeStoredPlayerName(name: string): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, name);
-  } catch {
-    // Storage may be disabled; preferences are not persisted.
-  }
-}
-
 export function PlayerNameForm({ submission, onSubmitted, onCancel }: PlayerNameFormProps) {
-  const [playerName, setPlayerName] = useState(readStoredPlayerName);
+  // Deliberately not remembered between visits. An older version stored the last submitted name
+  // and filled the field with it, which meant a returning player found someone else's name, or
+  // their own from a game they had forgotten, already typed in.
+  const [playerName, setPlayerName] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -67,7 +51,6 @@ export function PlayerNameForm({ submission, onSubmitted, onCancel }: PlayerName
 
     try {
       await submitScore({ ...submission, playerName: trimmed });
-      writeStoredPlayerName(trimmed);
       onSubmitted();
     } catch (error) {
       setSubmitError(getScoresErrorMessage(error));

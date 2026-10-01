@@ -79,11 +79,11 @@ describe('PlayerNameForm', () => {
     expect(screen.getByRole('textbox', { name: /Player name/i })).toHaveFocus();
   });
 
-  it('prefills the player name from localStorage', () => {
+  it('starts empty even when a name was stored by an older version', () => {
     window.localStorage.setItem('lights-out:playerName', 'StoredName');
     renderForm();
 
-    expect(screen.getByRole('textbox', { name: /Player name/i })).toHaveValue('StoredName');
+    expect(screen.getByRole('textbox', { name: /Player name/i })).toHaveValue('');
   });
 
   it('submits playerName with the game data', async () => {
@@ -104,7 +104,7 @@ describe('PlayerNameForm', () => {
     });
   });
 
-  it('remembers the last submitted name in localStorage', async () => {
+  it('does not store the submitted name', async () => {
     mockedSubmitScore.mockResolvedValue(successfulResponse);
     renderForm();
 
@@ -115,7 +115,7 @@ describe('PlayerNameForm', () => {
 
     await waitFor(() => expect(mockedSubmitScore).toHaveBeenCalled());
 
-    expect(window.localStorage.getItem('lights-out:playerName')).toBe('Tekio');
+    expect(window.localStorage.getItem('lights-out:playerName')).toBeNull();
   });
 
   it('rejects an empty name before making a request', () => {
@@ -175,34 +175,5 @@ describe('PlayerNameForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not break when localStorage is unavailable', () => {
-    const originalGetItem = Storage.prototype.getItem.bind(Storage.prototype);
-    Storage.prototype.getItem = () => {
-      throw new Error('disabled');
-    };
-
-    expect(() => renderForm()).not.toThrow();
-
-    Storage.prototype.getItem = originalGetItem;
-  });
-
-  it('does not break when localStorage cannot be written', async () => {
-    const originalSetItem = Storage.prototype.setItem.bind(Storage.prototype);
-    Storage.prototype.setItem = () => {
-      throw new Error('disabled');
-    };
-    mockedSubmitScore.mockResolvedValue(successfulResponse);
-
-    renderForm();
-    fireEvent.change(screen.getByRole('textbox', { name: /Player name/i }), {
-      target: { value: 'Tekio' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Submit/i }));
-
-    await waitFor(() => expect(mockedSubmitScore).toHaveBeenCalled());
-
-    Storage.prototype.setItem = originalSetItem;
   });
 });
