@@ -38,5 +38,5 @@ terraform/*.zip
 .idea/
 .DS_Store
 Thumbs.db
-# Local Pi runtime state
+# Local tool runtime state, not project source.
 .atl/
