@@ -107,7 +107,7 @@ Silent exceptions are treated as defects.
 | TF-8 | Stateful resources declare `prevent_destroy` unless the resource is explicitly ephemeral. | review |
 | TF-9 | Terraform state buckets are encrypted and versioned; no secret is ever written into a variable that lands in state. | review |
 | TF-10 | `plan` runs on pull requests and `apply` runs only from `main` after review. Production is never applied from a workstation. | review |
-| TF-11 | DynamoDB tables enable point-in-time recovery. This is the automatic backup the assignment requires. | review |
+| TF-11 | DynamoDB tables enable point-in-time recovery. This is what makes the backup automatic. | review |
 | TF-12 | Dev and prod are separated by state and by variable values, not by editing resource names. | review |
 
 ## 9. Documentation
