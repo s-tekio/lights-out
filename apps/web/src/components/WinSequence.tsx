@@ -57,7 +57,7 @@ export function WinSequence({
         titleId={titleId}
         backdropClassName="dialog-backdrop--light"
       >
-        <h2 id={titleId} className="screen-title">
+        <h2 id={titleId} className="screen-title win-sequence__headline">
           CONGRATULATIONS!
         </h2>
 

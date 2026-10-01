@@ -297,6 +297,13 @@ body {
 
 /* Scoped to this menu on purpose: the other dialogs share .dialog h2, and the
    settings screen shares .toggle, so an unscoped rule would move their text too. */
+/* The win headline is one sixteen-character word inside a dialog, so it takes a smaller
+   step of the same scale than the screen titles it otherwise matches. At the shared size
+   it exceeds the dialog's width on a phone and breaks across two lines. */
+.win-sequence__headline {
+  font-size: clamp(1rem, 4vw, 1.5rem);
+}
+
 .game-menu__title {
   text-align: center;
 }
