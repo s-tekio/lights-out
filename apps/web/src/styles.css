@@ -297,19 +297,13 @@ body {
 
 /* Scoped to this menu on purpose: the other dialogs share .dialog h2, and the
    settings screen shares .toggle, so an unscoped rule would move their text too. */
-/* CONGRATULATIONS! is a single sixteen-character word in a face as wide as Orbitron, and how
-   much room it gets is decided by the dialog rather than by the viewport: the dialog caps at
-   32rem with 1.25rem of padding either side, so a phone leaves about 288px. Sixteen characters
-   at roughly 0.95em each need about 304px at the shared title size, which is why it broke
-   across two lines. Measuring against the container instead of the viewport lets it keep the
-   shared size wherever there is room and step down only when there is not. Without container
-   query support the clamp is dropped and the shared size applies, which is the old behaviour. */
-.win-sequence__headline-box {
-  container-type: inline-size;
-}
-
+/* CONGRATULATIONS! is one sixteen-character word in the widest face in the project, inside a
+   dialog that offers about 288px on a phone. It takes the lower bound of the shared screen
+   title size rather than a value derived from the viewport or the container, and it is centred
+   so that if it ever does break it reads as deliberate rather than as an overflow. */
 .win-sequence__headline {
-  font-size: clamp(0.9rem, 6.5cqw, 2rem);
+  font-size: 1.25rem;
+  text-align: center;
 }
 
 .game-menu__title {
