@@ -301,7 +301,11 @@ body {
    dialog that offers about 288px on a phone. It takes the lower bound of the shared screen
    title size rather than a value derived from the viewport or the container, and it is centred
    so that if it ever does break it reads as deliberate rather than as an overflow. */
-.win-sequence__headline {
+/* The leading .dialog is load-bearing and must not be tidied away. `.dialog h2` sets font-size at
+   a specificity of (0,1,1), and a single class is (0,1,0), so this rule lost the cascade and the
+   heading stayed at the dialog's 1.5rem no matter what value was written here. Two classes beat
+   one class and one element, which is why the size finally applies. */
+.dialog .win-sequence__headline {
   font-size: 1.25rem;
   text-align: center;
 }
