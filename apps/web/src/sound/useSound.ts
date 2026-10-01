@@ -3,6 +3,7 @@ import { createSoundEngine, type SoundEngine } from './engine.ts';
 import {
   createMusicPlayer,
   handleMusicPlayRejection,
+  isNotAllowedError,
   silentMusicPlayer,
   type MusicPlayer,
 } from './musicPlayer.ts';
@@ -46,7 +47,9 @@ export function useSound(deps: SoundDependencies = {}): SoundControls {
   const effectsRef = useRef<SoundEngine>(deps.effects ?? createSoundEngine());
   const [musicEnabled, setMusicEnabled] = useState(() => readStoredFlag(MUSIC_STORAGE_KEY));
   const [effectsEnabled, setEffectsEnabled] = useState(() => readStoredFlag(EFFECTS_STORAGE_KEY));
-  const gestureStartedRef = useRef(false);
+  const gestureSucceededRef = useRef(false);
+  const gestureStoppedRef = useRef(false);
+  const gesturePlayPendingRef = useRef(false);
   const autoplayAttemptedRef = useRef(false);
 
   const toggleMusic = useCallback(() => {
@@ -88,24 +91,59 @@ export function useSound(deps: SoundDependencies = {}): SoundControls {
   }, [musicEnabled]);
 
   useEffect(() => {
-    if (!musicEnabled || gestureStartedRef.current) {
+    if (!musicEnabled || gestureSucceededRef.current || gestureStoppedRef.current) {
       return undefined;
     }
 
-    const startOnGesture = () => {
-      if (gestureStartedRef.current) {
-        return;
+    const eventTypes = ['pointerdown', 'touchend', 'click', 'keydown'] as const;
+    const listeners: { type: (typeof eventTypes)[number]; handler: () => void }[] = [];
+
+    const removeListeners = () => {
+      for (const { type, handler } of listeners) {
+        window.removeEventListener(type, handler);
       }
-      gestureStartedRef.current = true;
-      void musicRef.current.play().catch(handleMusicPlayRejection);
+      listeners.length = 0;
     };
 
-    window.addEventListener('pointerdown', startOnGesture, { once: true });
-    window.addEventListener('keydown', startOnGesture, { once: true });
+    const tryGesturePlay = async () => {
+      if (gesturePlayPendingRef.current) {
+        return;
+      }
+      gesturePlayPendingRef.current = true;
+      try {
+        musicRef.current.applyAudibility();
+        await musicRef.current.play();
+        gestureSucceededRef.current = true;
+        removeListeners();
+      } catch (error: unknown) {
+        // A policy refusal means we should wait for the next gesture; any
+        // other error is a real failure. Stop retrying and re-throw so the
+        // genuine error surfaces.
+        if (!isNotAllowedError(error)) {
+          gestureStoppedRef.current = true;
+          removeListeners();
+        }
+        handleMusicPlayRejection(error);
+      } finally {
+        gesturePlayPendingRef.current = false;
+      }
+    };
+
+    const startOnGesture = () => {
+      if (gestureSucceededRef.current || gestureStoppedRef.current) {
+        return;
+      }
+      void tryGesturePlay();
+    };
+
+    for (const type of eventTypes) {
+      const handler = startOnGesture;
+      listeners.push({ type, handler });
+      window.addEventListener(type, handler);
+    }
 
     return () => {
-      window.removeEventListener('pointerdown', startOnGesture);
-      window.removeEventListener('keydown', startOnGesture);
+      removeListeners();
     };
   }, [musicEnabled]);
 

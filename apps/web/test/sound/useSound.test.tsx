@@ -32,6 +32,7 @@ function createMockMusicPlayer(): MusicPlayer & {
   disposeCalls: number;
   lastEnabled: boolean | null;
   playRejections: unknown[];
+  audibilityCalls: number;
   resolvePlay(): void;
   rejectPlay(error: unknown): void;
 } {
@@ -45,6 +46,7 @@ function createMockMusicPlayer(): MusicPlayer & {
     disposeCalls: 0,
     lastEnabled: null,
     playRejections: [] as unknown[],
+    audibilityCalls: 0,
 
     play() {
       this.playCalls += 1;
@@ -67,6 +69,10 @@ function createMockMusicPlayer(): MusicPlayer & {
 
     setEnabled(enabled: boolean) {
       this.lastEnabled = enabled;
+    },
+
+    applyAudibility() {
+      this.audibilityCalls += 1;
     },
 
     resolvePlay() {
@@ -135,7 +141,7 @@ describe('useSound', () => {
     expect(music.playCalls).toBe(0);
   });
 
-  it('arms the gesture listener when the autoplay attempt is rejected', async () => {
+  it('retries a refused gesture attempt on the next gesture', async () => {
     const music = createMockMusicPlayer();
     const effects = createMockEngine();
     render(<TestHarness deps={{ music, effects }} />);
@@ -155,17 +161,139 @@ describe('useSound', () => {
     fireEvent.pointerDown(document);
     expect(music.playCalls).toBe(2);
 
+    await act(async () => {
+      music.rejectPlay(new DOMException('Still blocked', 'NotAllowedError'));
+      await Promise.resolve();
+    });
+
     fireEvent.pointerDown(document);
-    expect(music.playCalls).toBe(2);
+    expect(music.playCalls).toBe(3);
   });
 
-  it('starts the music on the first keyboard gesture when autoplay is rejected', async () => {
+  it('removes gesture listeners after a successful gesture play', async () => {
     const music = createMockMusicPlayer();
     const effects = createMockEngine();
     render(<TestHarness deps={{ music, effects }} />);
 
     await act(async () => {
       music.rejectPlay(new DOMException('Autoplay blocked', 'NotAllowedError'));
+      await Promise.resolve();
+    });
+
+    fireEvent.pointerDown(document);
+    expect(music.playCalls).toBe(2);
+
+    await act(async () => {
+      music.resolvePlay();
+      await Promise.resolve();
+    });
+
+    fireEvent.pointerDown(document);
+    fireEvent.keyDown(document);
+    fireEvent.click(document);
+    expect(music.playCalls).toBe(2);
+  });
+
+  it('lets a gesture re-assert playback even when the mount attempt resolved', async () => {
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+    expect(music.playCalls).toBe(1);
+
+    await act(async () => {
+      music.resolvePlay();
+      await Promise.resolve();
+    });
+
+    fireEvent.pointerDown(document);
+    expect(music.playCalls).toBe(2);
+    expect(music.audibilityCalls).toBe(1);
+  });
+
+  it('stops retrying on a non-policy error', async () => {
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+
+    await act(async () => {
+      music.rejectPlay(new DOMException('Autoplay blocked', 'NotAllowedError'));
+      await Promise.resolve();
+    });
+
+    const networkError = new Error('Network failure');
+    music.play = () => {
+      music.playCalls += 1;
+      return Promise.reject(networkError);
+    };
+
+    let unhandledReason: unknown = null;
+    const unhandledHandler = (event: PromiseRejectionEvent) => {
+      unhandledReason = event.reason;
+      event.preventDefault();
+    };
+    const processHandler = (reason: unknown) => {
+      unhandledReason = reason;
+    };
+    window.addEventListener('unhandledrejection', unhandledHandler);
+    process.on('unhandledRejection', processHandler);
+
+    fireEvent.pointerDown(document);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
+    });
+
+    window.removeEventListener('unhandledrejection', unhandledHandler);
+    process.off('unhandledRejection', processHandler);
+
+    expect(unhandledReason).toBe(networkError);
+    expect(music.playCalls).toBe(2);
+
+    fireEvent.pointerDown(document);
+    expect(music.playCalls).toBe(2);
+  });
+
+  it('re-asserts audibility before a gesture play', async () => {
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+
+    await act(async () => {
+      music.rejectPlay(new DOMException('Autoplay blocked', 'NotAllowedError'));
+      await Promise.resolve();
+    });
+
+    fireEvent.pointerDown(document);
+    expect(music.audibilityCalls).toBe(1);
+    expect(music.playCalls).toBe(2);
+
+    await act(async () => {
+      music.resolvePlay();
+      await Promise.resolve();
+    });
+
+    expect(music.playCalls).toBe(2);
+  });
+
+  it('starts the music on a keyboard gesture', async () => {
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+
+    await act(async () => {
+      music.rejectPlay(new DOMException('Autoplay blocked', 'NotAllowedError'));
+      await Promise.resolve();
+    });
+
+    fireEvent.keyDown(document);
+    expect(music.playCalls).toBe(2);
+
+    await act(async () => {
+      music.resolvePlay();
       await Promise.resolve();
     });
 
@@ -196,21 +324,27 @@ describe('useSound', () => {
 
     expect(getMusicButton()).toHaveTextContent('Music On');
     expect(music.lastEnabled).toBe(true);
-    expect(music.playCalls).toBe(initialPlayCalls + 1);
+    // The explicit toggle calls play, and the global click listener also sees
+    // the click as a user-activation gesture and tries to play.
+    expect(music.playCalls).toBe(initialPlayCalls + 2);
   });
 
-  it('toggles effects without touching the music player', () => {
+  it('toggles effects without changing the music state', () => {
     const music = createMockMusicPlayer();
     const effects = createMockEngine();
     render(<TestHarness deps={{ music, effects }} />);
     const playCallsBefore = music.playCalls;
     const pauseCallsBefore = music.pauseCalls;
+    const enabledBefore = music.lastEnabled;
 
     fireEvent.click(getEffectsButton());
     expect(getEffectsButton()).toHaveTextContent('Effects Off');
     expect(effects.lastEffectsEnabled).toBe(false);
-    expect(music.playCalls).toBe(playCallsBefore);
+    // The global click listener treats the click as a user-activation gesture
+    // and attempts to play, but it does not pause or change enabled state.
+    expect(music.playCalls).toBe(playCallsBefore + 1);
     expect(music.pauseCalls).toBe(pauseCallsBefore);
+    expect(music.lastEnabled).toBe(enabledBefore);
 
     fireEvent.click(getEffectsButton());
     expect(getEffectsButton()).toHaveTextContent('Effects On');

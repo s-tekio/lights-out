@@ -281,9 +281,9 @@ export function Leaderboard({ refreshKey = 0 }: LeaderboardProps) {
                 <tr key={score.id}>
                   <td>{score.playerName}</td>
                   <td>{formatBoardSizeLabel(score.boardSize)}</td>
-                  <td>{score.moves}</td>
-                  <td>{formatElapsed(score.elapsedMs)}</td>
-                  <td>{score.points}</td>
+                  <td className="leaderboard__cell--numeric">{score.moves}</td>
+                  <td className="leaderboard__cell--numeric">{formatElapsed(score.elapsedMs)}</td>
+                  <td className="leaderboard__cell--numeric">{score.points}</td>
                 </tr>
               ))}
             </tbody>

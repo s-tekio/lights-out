@@ -119,6 +119,16 @@ describe('musicPlayer', () => {
     expect(silentMusicPlayer.pause()).toBe(undefined);
     expect(silentMusicPlayer.dispose()).toBe(undefined);
     expect(silentMusicPlayer.setEnabled(false)).toBe(undefined);
+    expect(silentMusicPlayer.applyAudibility()).toBe(undefined);
+  });
+
+  it('re-applies the configured volume and unmutes the audio element', () => {
+    const { player, fake } = createPlayer();
+    fake.volume = 0;
+    fake.muted = true;
+    player.applyAudibility();
+    expect(fake.volume).toBe(MUSIC_VOLUME);
+    expect(fake.muted).toBe(false);
   });
 
   describe('handleMusicPlayRejection', () => {

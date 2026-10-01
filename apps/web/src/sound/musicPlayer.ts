@@ -6,6 +6,7 @@ export type MusicPlayer = {
   pause(): void;
   dispose(): void;
   setEnabled(enabled: boolean): void;
+  applyAudibility(): void;
 };
 
 // The file is loudness-normalised to -18 LUFS, which is a background-music
@@ -13,7 +14,7 @@ export type MusicPlayer = {
 // press blip while still being audible on a phone speaker.
 export const MUSIC_VOLUME = 0.25;
 
-function isNotAllowedError(error: unknown): boolean {
+export function isNotAllowedError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'NotAllowedError';
 }
 
@@ -94,6 +95,14 @@ export function createMusicPlayer(
         audio.pause();
       }
     },
+
+    applyAudibility() {
+      const activeAudio = ensureAudio();
+      if (activeAudio !== undefined) {
+        activeAudio.volume = MUSIC_VOLUME;
+        activeAudio.muted = false;
+      }
+    },
   };
 }
 
@@ -103,6 +112,7 @@ export const silentMusicPlayer: MusicPlayer = {
   pause: () => undefined,
   dispose: () => undefined,
   setEnabled: () => undefined,
+  applyAudibility: () => undefined,
 };
 
 export function handleMusicPlayRejection(error: unknown): void {

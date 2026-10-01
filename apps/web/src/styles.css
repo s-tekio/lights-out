@@ -305,6 +305,8 @@ body {
    opposite ends. Center them as a pair so the text sits under the other entries. */
 .game-menu .toggle {
   justify-content: center;
+  /* A normal word space, not the wide 1rem gap the settings screen needs. */
+  gap: 0.25rem;
 }
 
 /* Toggles */
@@ -1013,5 +1015,16 @@ body {
 
   .status__menu-button {
     flex: 0 0 auto;
+  }
+
+  .leaderboard__table th,
+  .leaderboard__table td {
+    padding: 0.375rem 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .leaderboard__table th,
+  .leaderboard__table td.leaderboard__cell--numeric {
+    white-space: nowrap;
   }
 }
