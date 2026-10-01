@@ -330,26 +330,6 @@ its removal requires an explicit, deliberate override rather than a single accid
 state bucket itself, and any bootstrap resources used by the CI/CD role, must be destroyed
 separately.
 
-## Testing and quality
-
-| Check | Command | Current state |
-| --- | --- | --- |
-| Lint | `npm run lint` | Passing, zero warnings |
-| Format | `npm run format:check` | Passing |
-| Types | `npm run typecheck` | Passing, both workspaces |
-| Tests | `npm run test:coverage` | 289 tests passing, 0 skipped |
-| Coverage gate | `npm run test:coverage` | API 95.17% statements / 92.85% branches, web 95.04% statements / 94.5% branches |
-| Build | `npm run build` | Passing |
-
-`docs/engineering-standards.md` is the binding bar. Every rule in it carries an ID and the
-mechanism that enforces it, so it states only rules that can actually be checked.
-
-The display font is Orbitron, licensed under the SIL Open Font License, Version 1.1; see
-`apps/web/src/assets/fonts/OFL.txt`.
-
-The background music is `neon-overdrive-cyberpunk-gaming-edm.mp3`; its attribution is in
-`apps/web/src/assets/audio/ATTRIBUTION.md`.
-
 ## Background music and browser autoplay
 
 The game asks the browser to play the music as soon as the page loads, and falls back to
