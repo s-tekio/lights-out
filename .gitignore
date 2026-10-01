@@ -10,7 +10,6 @@ build/
 coverage/
 
 # Environment files: never commit real secrets.
-# The assignment requires secrets to live outside the code (Secrets Manager / SSM Parameter Store).
 .env
 .env.*
 !.env.example
@@ -18,14 +17,11 @@ coverage/
 # Logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
-crash.log
 *.tfvars
 !*.tfvars.example
 
@@ -35,9 +31,6 @@ crash.log
 # The Lambda package produced by the archive_file data source is a build
 # artefact, not source. Committing it would put a stale zip in the repository.
 terraform/*.zip
-
-# AWS SAM / Lambda local tooling
-.aws-sam/
 
 # Editor and OS noise
 .vscode/
