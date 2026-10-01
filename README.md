@@ -354,7 +354,32 @@ The display font is Orbitron, licensed under the SIL Open Font License, Version 
 `apps/web/src/assets/fonts/OFL.txt`.
 
 The background music is `neon-overdrive-cyberpunk-gaming-edm.mp3`; its attribution is in
-`apps/web/src/assets/audio/ATTRIBUTION.md` and the source URL is pending.
+`apps/web/src/assets/audio/ATTRIBUTION.md`.
+
+## Background music and browser autoplay
+
+The game asks the browser to play the music as soon as the page loads, and falls back to
+starting it on the visitor's first click, tap or key press. Browsers refuse audible
+playback before a visitor has interacted with the site, and a page cannot grant itself
+that permission. What follows is how to grant it to this site.
+
+| Browser | Where |
+| --- | --- |
+| Chrome, Edge (desktop) | The site's **Sound** setting in Site settings, set to Allow. Chrome also permits it once it considers you a regular media consumer of the origin. |
+| Firefox | Autoplay settings for the site, allow Audio and Video. |
+| Safari (macOS) | Settings, Websites, Auto-Play, Allow All Auto-Play for the site. |
+| Safari (iOS) | No user-facing switch; the first tap is required. |
+| Local development | Chrome's `--autoplay-policy=no-user-gesture-required` flag, for testing only. |
+
+This is per visitor and per browser, so it cannot be solved in code. A new site cannot
+inherit the behaviour of one that already plays automatically either: YouTube is granted
+the exemption because the visitor's own history of watching media there crosses Chrome's
+Media Engagement Index, and where that does not apply its previews play **muted**, which
+is always allowed.
+
+Sources: Chrome's autoplay policy (<https://developer.chrome.com/blog/autoplay/>) and
+WebKit's auto-play policy changes for macOS
+(<https://webkit.org/blog/7734/auto-play-policy-changes-for-macos/>).
 
 ## Known limitations
 
