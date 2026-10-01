@@ -101,6 +101,51 @@ describe('Modal', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('opens and closes without a trigger ref', () => {
+    function HarnessWithoutTrigger() {
+      const [isOpen, setIsOpen] = useState(true);
+      return (
+        <Modal
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          dialogId="test-dialog"
+          titleId="test-dialog-title"
+        >
+          <h2 id="test-dialog-title">No trigger</h2>
+          <button type="button" onClick={() => setIsOpen(false)}>
+            Close
+          </button>
+        </Modal>
+      );
+    }
+
+    render(<HarnessWithoutTrigger />);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Close/i }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('applies the optional backdrop class name', () => {
+    function HarnessWithBackdropClass() {
+      return (
+        <Modal
+          isOpen
+          onClose={() => undefined}
+          dialogId="test-dialog"
+          titleId="test-dialog-title"
+          backdropClassName="custom-backdrop"
+        >
+          <h2 id="test-dialog-title">Titled</h2>
+        </Modal>
+      );
+    }
+
+    render(<HarnessWithBackdropClass />);
+    const backdrop = screen.getByRole('dialog').parentElement;
+    expect(backdrop).toHaveClass('dialog-backdrop', 'custom-backdrop');
+  });
+
   it('does not close when clicking inside the dialog', () => {
     render(<TestHarness />);
     openDialog();

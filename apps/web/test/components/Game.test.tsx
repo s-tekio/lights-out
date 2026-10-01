@@ -119,6 +119,25 @@ describe('Game', () => {
     expect(screen.getByRole('textbox', { name: /Player name/i })).toBeInTheDocument();
   });
 
+  it('renders the solved summary exactly once in the document', () => {
+    render(<Game difficultyId="easy" random={constantRandom(0)} />);
+
+    const difficulty = findDifficultyById('easy');
+    const { presses } = createSolvableBoard(
+      difficulty.boardSize,
+      difficulty.scrambleDepth,
+      constantRandom(0),
+      difficulty.minPresses,
+    );
+
+    for (const index of presses) {
+      fireEvent.click(getCell(index, difficulty.boardSize));
+    }
+
+    expect(screen.getAllByText(/Solved in/i)).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Show optimal sequence/i })).toHaveLength(1);
+  });
+
   it('does not start the timer before the first press', () => {
     render(<Game difficultyId="easy" random={constantRandom(0)} />);
 

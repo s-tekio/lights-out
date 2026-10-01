@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import { spawnBurst, updateParticles, type Particle } from '../game/fireworks';
 
-const DURATION_MS = 3500;
 const BURST_INTERVAL_MS = 600;
 const PARTICLES_PER_BURST = 24;
 const BURST_POWER = 160;
@@ -33,7 +32,6 @@ export function Fireworks() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const particlesRef = useRef<Particle[]>([]);
-  const startTimeRef = useRef<number | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const lastBurstTimeRef = useRef<number>(0);
 
@@ -61,19 +59,13 @@ export function Fireworks() {
     canvas.height = height;
 
     const step = (time: number) => {
-      if (startTimeRef.current === null) {
-        startTimeRef.current = time;
+      if (lastFrameTimeRef.current === null) {
         lastFrameTimeRef.current = time;
       }
 
-      const elapsed = time - startTimeRef.current;
-      const lastFrameTime = lastFrameTimeRef.current ?? time;
+      const lastFrameTime = lastFrameTimeRef.current;
       const dt = Math.min((time - lastFrameTime) / 1000, 0.05);
       lastFrameTimeRef.current = time;
-
-      if (elapsed >= DURATION_MS) {
-        return;
-      }
 
       if (time - lastBurstTimeRef.current >= BURST_INTERVAL_MS) {
         const centerX = width * 0.2 + Math.random() * width * 0.6;

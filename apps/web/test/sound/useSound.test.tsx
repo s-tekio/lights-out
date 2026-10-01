@@ -118,6 +118,15 @@ describe('useSound', () => {
     expect(music.playCalls).toBe(1);
   });
 
+  it('treats a missing stored music value as enabled', () => {
+    window.localStorage.clear();
+    const music = createMockMusicPlayer();
+    const effects = createMockEngine();
+    render(<TestHarness deps={{ music, effects }} />);
+    expect(getMusicButton()).toHaveTextContent('Music On');
+    expect(music.playCalls).toBe(1);
+  });
+
   it('does not attempt to play music on mount when music is disabled', () => {
     window.localStorage.setItem('lights-out:musicEnabled', 'false');
     const music = createMockMusicPlayer();

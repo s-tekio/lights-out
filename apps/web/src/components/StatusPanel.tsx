@@ -1,14 +1,6 @@
-import type { OptimalSolution } from '../game/optimal';
-import { SolutionReveal } from './SolutionReveal';
-
 type StatusPanelProps = {
   readonly moves: number;
   readonly elapsedMs: number;
-  readonly isSolved: boolean;
-  readonly boardSize: number;
-  readonly optimalSolution?: OptimalSolution | null;
-  readonly showSolution?: boolean;
-  readonly onToggleSolution?: () => void;
   readonly menuTriggerRef?: React.RefObject<HTMLButtonElement | null>;
   readonly isMenuOpen?: boolean;
   readonly onOpenMenu?: () => void;
@@ -25,11 +17,6 @@ function formatElapsed(ms: number): string {
 export function StatusPanel({
   moves,
   elapsedMs,
-  isSolved,
-  boardSize,
-  optimalSolution = null,
-  showSolution = false,
-  onToggleSolution,
   menuTriggerRef,
   isMenuOpen,
   onOpenMenu,
@@ -69,24 +56,6 @@ export function StatusPanel({
           </button>
         )}
       </div>
-
-      {isSolved && (
-        <div className="status__result">
-          <p>
-            Solved in {moves} moves and {formatElapsed(elapsedMs)}.
-          </p>
-
-          {optimalSolution !== null && onToggleSolution !== undefined && (
-            <SolutionReveal
-              moves={moves}
-              boardSize={boardSize}
-              solution={optimalSolution}
-              showSolution={showSolution}
-              onToggleSolution={onToggleSolution}
-            />
-          )}
-        </div>
-      )}
     </section>
   );
 }

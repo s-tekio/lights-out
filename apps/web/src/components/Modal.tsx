@@ -3,16 +3,25 @@ import { useCallback, useEffect, useRef } from 'react';
 type ModalProps = {
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  readonly triggerRef: React.RefObject<HTMLButtonElement | null>;
+  readonly triggerRef?: React.RefObject<HTMLButtonElement | null>;
   readonly dialogId: string;
   readonly titleId: string;
+  readonly backdropClassName?: string;
   readonly children: React.ReactNode;
 };
 
 const FOCUSABLE_SELECTORS =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ isOpen, onClose, triggerRef, dialogId, titleId, children }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  triggerRef,
+  dialogId,
+  titleId,
+  backdropClassName,
+  children,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const wasOpenRef = useRef(false);
 
@@ -79,7 +88,7 @@ export function Modal({ isOpen, onClose, triggerRef, dialogId, titleId, children
     // load and dropping a screen reader user into the header.
     if (wasOpenRef.current) {
       wasOpenRef.current = false;
-      triggerRef.current?.focus();
+      triggerRef?.current?.focus();
     }
   }, [isOpen, triggerRef, getFocusableElements]);
 
@@ -93,8 +102,10 @@ export function Modal({ isOpen, onClose, triggerRef, dialogId, titleId, children
     return null;
   }
 
+  const backdropClasses = ['dialog-backdrop', backdropClassName].filter(Boolean).join(' ');
+
   return (
-    <div className="dialog-backdrop" onClick={handleBackdropClick}>
+    <div className={backdropClasses} onClick={handleBackdropClick}>
       <div
         ref={dialogRef}
         id={dialogId}

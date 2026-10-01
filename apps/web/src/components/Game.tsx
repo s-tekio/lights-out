@@ -138,11 +138,6 @@ export function Game({
       <StatusPanel
         moves={state.moves}
         elapsedMs={state.elapsedMs}
-        isSolved={state.status === 'solved'}
-        boardSize={difficulty.boardSize}
-        optimalSolution={optimalSolution}
-        showSolution={showSolution}
-        onToggleSolution={handleToggleSolution}
         menuTriggerRef={menuTriggerRef}
         isMenuOpen={isMenuOpen}
         onOpenMenu={onOpenMenu}
@@ -164,6 +159,9 @@ export function Game({
             moves: state.moves,
             elapsedMs: state.elapsedMs,
           }}
+          optimalSolution={optimalSolution}
+          showSolution={showSolution}
+          onToggleSolution={handleToggleSolution}
           onScoreSubmitted={() => {
             onScoreSubmitted?.();
           }}

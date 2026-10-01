@@ -2,61 +2,44 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StatusPanel } from '../../src/components/StatusPanel';
 
-function renderSolvedPanel(props: Partial<Parameters<typeof StatusPanel>[0]> = {}) {
-  return render(
-    <StatusPanel moves={7} elapsedMs={42310} isSolved={true} boardSize={5} {...props} />,
-  );
+function renderPanel(props: Partial<Parameters<typeof StatusPanel>[0]> = {}) {
+  return render(<StatusPanel moves={7} elapsedMs={42310} {...props} />);
 }
 
-describe('StatusPanel solution reveal', () => {
+describe('StatusPanel', () => {
   afterEach(() => {
     cleanup();
   });
 
-  it('renders the optimal count and a toggle when a solution is provided', () => {
-    const onToggleSolution = vi.fn();
-    renderSolvedPanel({
-      optimalSolution: { presses: 5, cells: [0, 6, 12, 18, 24] },
-      showSolution: false,
-      onToggleSolution,
-    });
+  it('renders the move and time metrics', () => {
+    renderPanel();
 
-    expect(screen.getByText(/Optimal: 5 presses/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Show optimal sequence/i })).toBeInTheDocument();
+    expect(screen.getByText('Moves: 7')).toBeInTheDocument();
+    expect(screen.getByText('Time: 0:42')).toBeInTheDocument();
   });
 
-  it('expands the ordered coordinate list when toggled', () => {
-    const onToggleSolution = vi.fn();
-    renderSolvedPanel({
-      optimalSolution: { presses: 2, cells: [0, 6] },
-      showSolution: true,
-      onToggleSolution,
-    });
+  it('does not render the solved summary', () => {
+    renderPanel();
 
-    expect(screen.getByRole('list')).toBeInTheDocument();
-    expect(screen.getByText(/Row 1, Column 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Row 2, Column 2/i)).toBeInTheDocument();
-  });
-
-  it('calls onToggleSolution when the toggle button is pressed', () => {
-    const onToggleSolution = vi.fn();
-    renderSolvedPanel({
-      optimalSolution: { presses: 1, cells: [12] },
-      showSolution: false,
-      onToggleSolution,
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Show optimal sequence/i }));
-
-    expect(onToggleSolution).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not render the solution reveal when no solution is provided', () => {
-    renderSolvedPanel();
-
+    expect(screen.queryByText(/Solved in/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Optimal:/i)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /Show optimal sequence/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('renders the menu button when a menu opener is provided', () => {
+    renderPanel({ onOpenMenu: vi.fn() });
+
+    expect(screen.getByRole('button', { name: /Open game menu/i })).toBeInTheDocument();
+  });
+
+  it('calls onOpenMenu when the menu button is pressed', () => {
+    const onOpenMenu = vi.fn();
+    renderPanel({ onOpenMenu });
+
+    fireEvent.click(screen.getByRole('button', { name: /Open game menu/i }));
+
+    expect(onOpenMenu).toHaveBeenCalledTimes(1);
   });
 });

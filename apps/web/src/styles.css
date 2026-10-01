@@ -539,6 +539,13 @@ body {
   z-index: 100;
 }
 
+/* The win modal keeps the fireworks readable. The shared 80% scrim would
+   reduce them to a rumour, so this variant is light enough to let the
+   particles show through while still separating the dialog from the board. */
+.dialog-backdrop--light {
+  background-color: rgb(0 0 0 / 35%);
+}
+
 .dialog {
   display: flex;
   flex-direction: column;
@@ -713,36 +720,18 @@ body {
   }
 }
 
-.win-sequence {
-  position: absolute;
-  inset: 0;
+.win-sequence__summary {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  overflow-y: auto;
-  z-index: 2;
+  gap: 0.75rem;
 }
 
-.win-sequence__content {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  max-width: 24rem;
-  pointer-events: none;
-}
-
-.win-sequence .game-title {
-  text-align: center;
+.win-sequence__solved-in {
+  margin: 0;
 }
 
 .win-sequence__form {
   width: 100%;
-  pointer-events: auto;
 }
 
 .player-name-form {
